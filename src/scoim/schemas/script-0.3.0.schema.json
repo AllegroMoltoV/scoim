@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AllegroMoltoV/scoim/schemas/script-0.3.0.schema.json",
+  "title": "SCoIM validated music script 0.3.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_type",
+    "schema_version",
+    "document_id",
+    "revision",
+    "status",
+    "source_flow",
+    "script"
+  ],
+  "properties": {
+    "document_type": {"const": "script"},
+    "schema_version": {"const": "0.3.0"},
+    "document_id": {"$ref": "#/$defs/id"},
+    "revision": {"const": 1},
+    "status": {"const": "validated"},
+    "source_flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document_id", "revision", "content_sha256"],
+      "properties": {
+        "document_id": {"$ref": "#/$defs/id"},
+        "revision": {"type": "integer", "minimum": 1},
+        "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "script": {"$ref": "#/$defs/script"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "nonEmptyText": {"type": "string", "minLength": 1},
+    "typedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["section", "material", "material_placement"]},
+        "id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "directionTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["section", "material_placement"]},
+        "id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parent_section_id", "order", "role", "description"],
+      "properties": {
+        "parent_section_id": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/id"}]
+        },
+        "order": {"type": "integer", "minimum": 0},
+        "role": {"$ref": "#/$defs/id"},
+        "relative_length": {"type": "number", "exclusiveMinimum": 0},
+        "description": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description"],
+      "properties": {
+        "description": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "materialPlacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_id", "material_id", "role"],
+      "properties": {
+        "section_id": {"$ref": "#/$defs/id"},
+        "material_id": {"$ref": "#/$defs/id"},
+        "role": {"$ref": "#/$defs/id"}
+      }
+    },
+    "variationRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "preserve", "change", "description"],
+      "properties": {
+        "source": {"$ref": "#/$defs/typedReference"},
+        "target": {"$ref": "#/$defs/typedReference"},
+        "preserve": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/nonEmptyText"}
+        },
+        "change": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/nonEmptyText"}
+        },
+        "description": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "materialPlacementTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_material_placement_id",
+        "transition_material_placement_id",
+        "target_material_placement_id",
+        "description"
+      ],
+      "properties": {
+        "source_material_placement_id": {"$ref": "#/$defs/id"},
+        "transition_material_placement_id": {"$ref": "#/$defs/id"},
+        "target_material_placement_id": {"$ref": "#/$defs/id"},
+        "description": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "performanceDirection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "description"],
+      "properties": {
+        "target": {"$ref": "#/$defs/directionTarget"},
+        "relative_to": {"$ref": "#/$defs/directionTarget"},
+        "description": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "comparisonRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["performance_direction_id", "feature", "relation"],
+      "properties": {
+        "performance_direction_id": {"$ref": "#/$defs/id"},
+        "feature": {"enum": ["onset_alignment", "loudness"]},
+        "relation": {"enum": ["more", "less"]}
+      }
+    },
+    "sectionCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/section"}
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "materialCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/material"}
+      },
+      "additionalProperties": false
+    },
+    "materialPlacementCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/materialPlacement"}
+      },
+      "additionalProperties": false
+    },
+    "variationRelationCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/variationRelation"}
+      },
+      "additionalProperties": false
+    },
+    "materialPlacementTransitionCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/materialPlacementTransition"}
+      },
+      "additionalProperties": false
+    },
+    "performanceDirectionCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/performanceDirection"}
+      },
+      "additionalProperties": false
+    },
+    "comparisonRequirementCollection": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {"$ref": "#/$defs/comparisonRequirement"}
+      },
+      "additionalProperties": false
+    },
+    "performanceSetup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrumentation", "target_duration_seconds", "performance_directions"],
+      "properties": {
+        "instrumentation": {"$ref": "#/$defs/id"},
+        "target_duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "performance_directions": {"$ref": "#/$defs/performanceDirectionCollection"}
+      }
+    },
+    "script": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "brief",
+        "performance_setup",
+        "root_section_id",
+        "sections",
+        "materials",
+        "material_placements",
+        "script_element_variation_relations",
+        "material_placement_transitions",
+        "performance_direction_comparison_requirements"
+      ],
+      "properties": {
+        "title": {"$ref": "#/$defs/nonEmptyText"},
+        "brief": {"$ref": "#/$defs/nonEmptyText"},
+        "performance_setup": {"$ref": "#/$defs/performanceSetup"},
+        "root_section_id": {"$ref": "#/$defs/id"},
+        "sections": {"$ref": "#/$defs/sectionCollection"},
+        "materials": {"$ref": "#/$defs/materialCollection"},
+        "material_placements": {"$ref": "#/$defs/materialPlacementCollection"},
+        "script_element_variation_relations": {
+          "$ref": "#/$defs/variationRelationCollection"
+        },
+        "material_placement_transitions": {
+          "$ref": "#/$defs/materialPlacementTransitionCollection"
+        },
+        "performance_direction_comparison_requirements": {
+          "$ref": "#/$defs/comparisonRequirementCollection"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.llm-musical-composer/schemas/composition-request.schema.json",
+  "title": "Composition request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "preset"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "preset": {
+      "const": "solo_piano_3m_v1"
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/\\\\]+$"
+    },
+    "controls": {
+      "type": "object",
+      "description": "No fader is public until its directional and independence controls pass.",
+      "maxProperties": 0,
+      "additionalProperties": false
+    }
+  }
+}

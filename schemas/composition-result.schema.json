@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.llm-musical-composer/schemas/composition-result.schema.json",
+  "title": "Composition result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_sha256",
+    "evaluator_registry_sha256",
+    "status",
+    "fixed_conditions",
+    "controls",
+    "reference_similarity",
+    "artifacts",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "request_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "evaluator_registry_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed",
+        "unverified"
+      ]
+    },
+    "fixed_conditions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/axisResult"
+      }
+    },
+    "controls": {
+      "type": "object",
+      "maxProperties": 0,
+      "additionalProperties": false
+    },
+    "reference_similarity": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/axisResult"
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "final_smf"
+      ],
+      "properties": {
+        "final_smf": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "axisResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evaluator_ids",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "achieved",
+            "not_achieved",
+            "unverified",
+            "not_applicable"
+          ]
+        },
+        "evaluator_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

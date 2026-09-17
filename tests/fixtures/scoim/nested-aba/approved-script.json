@@ -1,0 +1,272 @@
+{
+  "schema_version": "0.1.0",
+  "document_id": "nested_aba",
+  "revision": 1,
+  "status": "approved",
+  "approval": {
+    "content_sha256": "7cafe447b9ac9bf75eadb4503a0db85bac4a8e79679c01aa389761cd7a399ec5"
+  },
+  "script": {
+    "title": "問いと帰還",
+    "brief": "ためらいながら主題を示し、動きのある対照部を経て、縦を揃えた主題へ戻り、十分な余韻で閉じる。",
+    "performance_setup": {
+      "instrumentation": "solo_piano",
+      "target_duration_seconds": 180,
+      "performance_directions": {
+        "opening_freedom": {
+          "target": {
+            "type": "section",
+            "id": "a1_open"
+          },
+          "description": "冒頭は呼吸と溜めを感じる程度に時間を揺らす。"
+        },
+        "opening_answer": {
+          "target": {
+            "type": "section",
+            "id": "a1_answer"
+          },
+          "relative_to": {
+            "type": "section",
+            "id": "a1_open"
+          },
+          "description": "同じ主題を保ちながら少し前へ進める。"
+        },
+        "contrast_growth": {
+          "target": {
+            "type": "section",
+            "id": "b2"
+          },
+          "relative_to": {
+            "type": "section",
+            "id": "b1"
+          },
+          "description": "対照部の後半は音量と流れを一段だけ高める。"
+        },
+        "aligned_return": {
+          "target": {
+            "type": "section",
+            "id": "a2"
+          },
+          "relative_to": {
+            "type": "section",
+            "id": "a1"
+          },
+          "description": "帰還部は冒頭より縦を揃え、簡潔に進める。"
+        }
+      }
+    },
+    "root_section_id": "whole",
+    "sections": {
+      "whole": {
+        "parent_section_id": null,
+        "order": 0,
+        "role": "whole",
+        "description": "A-B-Aの全体構成。"
+      },
+      "a1": {
+        "parent_section_id": "whole",
+        "order": 0,
+        "role": "statement",
+        "description": "主題を二つの小区分で示す。"
+      },
+      "a1_open": {
+        "parent_section_id": "a1",
+        "order": 0,
+        "role": "statement",
+        "relative_length": 3,
+        "description": "主題をゆったり提示する。"
+      },
+      "a1_answer": {
+        "parent_section_id": "a1",
+        "order": 1,
+        "role": "variation",
+        "relative_length": 3,
+        "description": "主題を保って応答する。"
+      },
+      "bridge_ab": {
+        "parent_section_id": "whole",
+        "order": 1,
+        "role": "transition",
+        "relative_length": 1,
+        "description": "対照部へ短くつなぐ。"
+      },
+      "b": {
+        "parent_section_id": "whole",
+        "order": 2,
+        "role": "contrast",
+        "description": "動きのある対照部。"
+      },
+      "b1": {
+        "parent_section_id": "b",
+        "order": 0,
+        "role": "contrast",
+        "relative_length": 3,
+        "description": "新しい動きを示す。"
+      },
+      "b2": {
+        "parent_section_id": "b",
+        "order": 1,
+        "role": "climax",
+        "relative_length": 3,
+        "description": "同じ動きを少し高める。"
+      },
+      "bridge_ba": {
+        "parent_section_id": "whole",
+        "order": 3,
+        "role": "transition",
+        "relative_length": 1,
+        "description": "帰還部へ短くつなぐ。"
+      },
+      "a2": {
+        "parent_section_id": "whole",
+        "order": 4,
+        "role": "return",
+        "description": "主題を二つの小区分で回帰させる。"
+      },
+      "a2_open": {
+        "parent_section_id": "a2",
+        "order": 0,
+        "role": "statement",
+        "relative_length": 3,
+        "description": "主題を縦の揃った形で戻す。"
+      },
+      "a2_answer": {
+        "parent_section_id": "a2",
+        "order": 1,
+        "role": "variation",
+        "relative_length": 3,
+        "description": "主題を短く言い切る。"
+      },
+      "release": {
+        "parent_section_id": "whole",
+        "order": 5,
+        "role": "release",
+        "relative_length": 2,
+        "description": "十分な長さの余韻で閉じる。"
+      }
+    },
+    "materials": {
+      "theme": {
+        "kind": "theme",
+        "description": "問いかける中心主題。"
+      },
+      "connector": {
+        "kind": "transition",
+        "description": "隣の場面へ導く短い素材。"
+      },
+      "contrast": {
+        "kind": "contrast",
+        "description": "主題と異なる動きを持つ素材。"
+      },
+      "cadence": {
+        "kind": "ending",
+        "description": "主音を長く保つ終止素材。"
+      }
+    },
+    "placements": {
+      "a1_open_theme": {
+        "section_id": "a1_open",
+        "material_id": "theme"
+      },
+      "a1_answer_theme": {
+        "section_id": "a1_answer",
+        "material_id": "theme"
+      },
+      "bridge_ab_connector": {
+        "section_id": "bridge_ab",
+        "material_id": "connector"
+      },
+      "b1_contrast": {
+        "section_id": "b1",
+        "material_id": "contrast"
+      },
+      "b2_contrast": {
+        "section_id": "b2",
+        "material_id": "contrast"
+      },
+      "bridge_ba_connector": {
+        "section_id": "bridge_ba",
+        "material_id": "connector"
+      },
+      "a2_open_theme": {
+        "section_id": "a2_open",
+        "material_id": "theme"
+      },
+      "a2_answer_theme": {
+        "section_id": "a2_answer",
+        "material_id": "theme"
+      },
+      "release_cadence": {
+        "section_id": "release",
+        "material_id": "cadence"
+      }
+    },
+    "variations": {
+      "a1_answer_variation": {
+        "source": {
+          "type": "section",
+          "id": "a1_open"
+        },
+        "target": {
+          "type": "section",
+          "id": "a1_answer"
+        },
+        "preserve": [
+          "主題の輪郭"
+        ],
+        "change": [
+          "流れ"
+        ],
+        "description": "一回目の主題を少し前へ進めて応答する。"
+      },
+      "b_growth_variation": {
+        "source": {
+          "type": "section",
+          "id": "b1"
+        },
+        "target": {
+          "type": "section",
+          "id": "b2"
+        },
+        "preserve": [
+          "対照素材の動き"
+        ],
+        "change": [
+          "強さ"
+        ],
+        "description": "対照素材を保ちながら少し盛り上げる。"
+      },
+      "return_variation": {
+        "source": {
+          "type": "section",
+          "id": "a1"
+        },
+        "target": {
+          "type": "section",
+          "id": "a2"
+        },
+        "preserve": [
+          "主題と小区分の順序"
+        ],
+        "change": [
+          "打鍵の揃い方"
+        ],
+        "description": "冒頭の主題群を縦の揃った演奏で回帰させる。"
+      }
+    },
+    "transitions": {
+      "a_to_b": {
+        "from_placement_id": "a1_answer_theme",
+        "connector_placement_id": "bridge_ab_connector",
+        "to_placement_id": "b1_contrast",
+        "description": "主題の応答から対照素材へ自然に導く。"
+      },
+      "b_to_a": {
+        "from_placement_id": "b2_contrast",
+        "connector_placement_id": "bridge_ba_connector",
+        "to_placement_id": "a2_open_theme",
+        "description": "対照部の頂点から主題の回帰へ落ち着かせる。"
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "current_valid_response": {
+    "path": ".appendix/scoim-workspace-accompaniment-live-v3/events/accompaniment-all/response.json",
+    "sha256": "76822f8ed8b5d621bd0a8ce58fffe4edb67ac522442f69cff502236680484af9"
+  },
+  "cases": [
+    {
+      "case_id": "response-count-mismatch",
+      "historical_failure_path": ".appendix/supported-normal-generation-v26-capacity-normalization-seed007-network-enabled/runs/whole-score/failures/texture-collection-batch-001.json",
+      "historical_failure_sha256": "cd4e41b052e9e21b8c62bf907ade0c78e42a260ecdb10cdcea835c612c7406ae",
+      "current_control_transform": "accompaniments配列の末尾要素を1件取り除く"
+    },
+    {
+      "case_id": "unplaceable-accompaniment",
+      "historical_failure_path": ".appendix/supported-normal-generation-v27-creative-intent-seed007-network-enabled/runs/whole-score/failures/texture-collection-batch-001.json",
+      "historical_failure_sha256": "38a2b63071de0b88b8eb88777db68c507cedaa957ee487adede4d4f67fd0c561",
+      "current_control_transform": "先頭伴奏イベントの希望音価を和音区間に収まらない値へ変える"
+    }
+  ]
+}

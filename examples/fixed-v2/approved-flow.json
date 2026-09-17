@@ -1,0 +1,24 @@
+{
+  "document_type": "flow",
+  "schema_version": "0.1.0",
+  "document_id": "flow-001",
+  "revision": 1,
+  "status": "approved",
+  "approval": {
+    "content_sha256": "8efcdcd7cbee6759cfc4b3532d6789e567d828375b77c4610bd98020aae5b3e5"
+  },
+  "title": "小さな曲",
+  "overall_flow": "主題を示して閉じる。",
+  "instrumentation": "solo_piano",
+  "target_duration": 180,
+  "scenes": [
+    {
+      "scene_id": "scene-001",
+      "name": "主題",
+      "length_class": "medium",
+      "heard_as": "穏やかな主題。",
+      "relation_to_previous": "曲の始まり。",
+      "transition_to_next": "静かに閉じる。"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scoim.dev/schemas/flow-proposal-response-1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "overall_flow", "scenes"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1},
+    "overall_flow": {"type": "string", "minLength": 1},
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "length_class",
+          "heard_as",
+          "relation_to_previous",
+          "transition_to_next"
+        ],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "length_class": {"enum": ["short", "medium", "long"]},
+          "heard_as": {"type": "string", "minLength": 1},
+          "relation_to_previous": {"type": "string", "minLength": 1},
+          "transition_to_next": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,701 @@
+{
+  "schema_version": 1,
+  "baseline_artifacts": [
+    {
+      "id": "v26-listening-accepted-baseline",
+      "role": "accepted_baseline",
+      "files": [
+        {
+          "path": ".appendix/long-form-runs/20260818-long-form-v26-ending-voice-leading/final.mid",
+          "sha256": "7E0EF756CBEBA0E4C72BFF8618B8E7AFBFF579E25384F6E7DD06A3F2C3DC6B8B"
+        },
+        {
+          "path": ".appendix/long-form-runs/20260818-long-form-v26-ending-voice-leading/final.music.py",
+          "sha256": "E7F7444CFC11AA4AA3F022577EEC97C3A389224B4F3845CA75A07ED926447E60"
+        },
+        {
+          "path": ".appendix/long-form-runs/20260818-long-form-v26-ending-voice-leading/run-spec.json",
+          "sha256": "692FC136FD2D9FEAD093274DEC25ABF0875CE91616FC6D93DB980A5716A676A7"
+        },
+        {
+          "path": ".appendix/long-form-runs/20260818-long-form-v26-ending-voice-leading/verification.json",
+          "sha256": "6B839C8A11F240B95A42CF10DAC85E24A8BA39AEC7EA6084EB2708581FC67D84"
+        }
+      ],
+      "known_findings": [
+        "利用者が現段階では問題なしと判断した三分曲である",
+        "固定品質の八ハードゲートに合格している",
+        "参照作風の類似は未達であり、この成果物だけでは保証しない"
+      ]
+    },
+    {
+      "id": "v9-creepy-overdense-negative",
+      "role": "negative_control",
+      "files": [
+        {
+          "path": ".appendix/long-form-runs/20260816-long-form-v9-motif-style/final.mid",
+          "sha256": "A3B4F43F99513DD412F3D842549E472BBC6917DB48928205103BCFD06501744D"
+        }
+      ],
+      "known_findings": [
+        "利用者から和音が複雑で不気味、音数過多、反復過多と指摘された",
+        "180秒で1537音あり、複数素材が12音名を網羅していた",
+        "区分境界のペダル解放と遷移が不自然だった"
+      ]
+    },
+    {
+      "id": "v24-ending-leap-negative",
+      "role": "negative_control",
+      "files": [
+        {
+          "path": ".appendix/long-form-runs/20260818-long-form-v24-rhythm-warp/final.mid",
+          "sha256": "9161700A3D2347A79F883EDF14139D44706958FA2DC29972C2E4077F2BAFDC4B"
+        }
+      ],
+      "known_findings": [
+        "終端の固定主和音が直前声部から大きく跳躍する既知問題を含む",
+        "v26で終端外声を直前声部へ接続する決定的処理に置き換えた"
+      ]
+    },
+    {
+      "id": "v34-transposition-diagnostic-control",
+      "role": "diagnostic_control",
+      "files": [
+        {
+          "path": ".appendix/style-comparisons/20260818-v34-v26-plus-one/final.mid",
+          "sha256": "73B7D84FF93D3DE84CC6CBED21D9DBFCC5F5244F52033E9D3DABC9310888A455"
+        }
+      ],
+      "known_findings": [
+        "v26を1半音上げただけで新しい作曲候補ではない",
+        "絶対音高を含む表面4軸が指標攻略されることを示す診断対照である",
+        "利用者へ試聴候補として公開してはいけない"
+      ]
+    }
+  ],
+  "evaluators": [
+    {
+      "id": "long_form_publication_gates_v26",
+      "status": "hard_gate",
+      "implementation_path": "src/llm_musical_composer/long_form_loop.py",
+      "entrypoint": "evaluate_long_form_candidate",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-piano-voices-and-typed-variations.md",
+        "docs/reports/2026-08-16-sustain-pedal-contract-run.md",
+        "docs/reports/2026-08-16-long-form-naturalness-and-transitions.md",
+        "docs/reports/2026-08-17-long-form-phrase-relations.md"
+      ],
+      "scope": "solo_piano_3m_v1の尺、サステイン、宣言済み大区分、終端、SMF再読込、自然さ、二声性、型付き変奏",
+      "units": [
+        "gateごとのboolean",
+        "duration_ms",
+        "note_count"
+      ],
+      "invariances": [
+        "同じCompositionと同じ評価器実装に対して決定的"
+      ],
+      "known_false_positives": [
+        "各ゲート合格だけでは参照作風類似や聴感品質を保証しない"
+      ],
+      "known_false_negatives": [
+        "異なるペダル様式や無調作品などプリセット外の妥当な曲を拒否し得る"
+      ]
+    },
+    {
+      "id": "pilot_reference_axis_selection_v1",
+      "status": "selection",
+      "implementation_path": "src/llm_musical_composer/pilot_features.py",
+      "entrypoint": "evaluate_features",
+      "evidence_reports": [
+        "docs/reports/2026-08-12-activity-axis-candidate-selection.md"
+      ],
+      "validated_controls": [
+        "保存済み3候補の軸別順位",
+        "全体時間伸縮と順序破壊への反応"
+      ],
+      "scope": "既存47秒パイロットの保存済み候補選別だけ。参照作風の達成判定には使わない",
+      "units": [
+        "軸別IQR内外",
+        "軸別正規化距離"
+      ],
+      "invariances": [
+        "入力順",
+        "相対時間軸は全体時間伸縮"
+      ],
+      "known_false_positives": [
+        "表面統計が近くても旋律、和声、構成は似ない場合がある"
+      ],
+      "known_false_negatives": [
+        "人間が似ていると感じる曲でもIQR外になり得る"
+      ]
+    },
+    {
+      "id": "pilot_material_uniformity_selection_v1",
+      "status": "selection",
+      "implementation_path": "src/llm_musical_composer/material_development.py",
+      "entrypoint": "evaluate_material_development",
+      "evidence_reports": [
+        "docs/reports/2026-08-16-material-development-composition-run.md"
+      ],
+      "validated_controls": [
+        "既知の極端な均一素材の検出",
+        "保存済みパイロット候補の順位補助"
+      ],
+      "scope": "47秒パイロットで極端な均一化を不利にする下限選別だけ",
+      "units": [
+        "音価変化率",
+        "発音間隔変化率",
+        "発音群変化率"
+      ],
+      "invariances": [
+        "全体時間伸縮"
+      ],
+      "known_false_positives": [
+        "機械的な交互変化でも高い変化率になり得る"
+      ],
+      "known_false_negatives": [
+        "意図的な長音や単純な反復を極端な均一化と判定し得る"
+      ]
+    },
+    {
+      "id": "reference_profile_selection_v1",
+      "status": "selection",
+      "implementation_path": "src/llm_musical_composer/reference_profile.py",
+      "entrypoint": "profile_distances",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-reference-profile-v1.md"
+      ],
+      "validated_controls": [
+        "入力順変更で三特徴群の距離が完全に不変",
+        "全体移調と全体時間伸縮で元曲を全232曲の三特徴群で1位に再検索",
+        "velocity平坦化、発音時刻破壊、音高順序破壊を対象特徴群で識別"
+      ],
+      "scope": "参照232曲の奏法とテクスチャ、リズムと時間、音高と和声語彙による参照検索と候補の軸別順位。聴感上の作風類似、長期構成、品質の合格判定には使わない",
+      "units": [
+        "特徴群別距離",
+        "特徴群別順位"
+      ],
+      "invariances": [
+        "入力順",
+        "全体移調",
+        "元曲再検索における全体時間伸縮"
+      ],
+      "known_false_positives": [
+        "数値近傍でも旋律、和声機能、長期構成が聴感上似ない可能性がある"
+      ],
+      "known_false_negatives": [
+        "同じ作風でも未記述の声部進行や長期構成だけが似る曲を遠く判定し得る"
+      ]
+    },
+    {
+      "id": "surface_style_target_4axis_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/style_target.py",
+      "entrypoint": "evaluate_style_features",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-style-target-feasibility-and-evaluation-semantics.md",
+        "docs/reports/2026-08-18-feasible-style-target-comparison.md"
+      ],
+      "scope": "密度、重なり、velocity、絶対音域の表面記述。生成の合否と参照作風順位には使わない",
+      "units": [
+        "notes_per_second",
+        "mean_polyphony",
+        "MIDI_velocity",
+        "MIDI_pitch_range"
+      ],
+      "invariances": [
+        "densityは曲長正規化"
+      ],
+      "known_false_positives": [
+        "1半音移調で音域だけを動かし既存目標へ近づけられる",
+        "4軸が近くても旋律、和声、構成の類似を示さない"
+      ],
+      "known_false_negatives": [
+        "聴感上問題なしのv26でも一部軸が範囲外になる"
+      ],
+      "prohibited_uses": [
+        "acceptance",
+        "ranking",
+        "style_similarity_claim"
+      ]
+    },
+    {
+      "id": "reference_copy_risk_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/reference_profile.py",
+      "entrypoint": "evaluate_copy_risk",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-reference-profile-v1.md"
+      ],
+      "scope": "移調と全体時間倍率の違いへ頑健な局所トークンによるコピー疑いの独立検査。候補生成との統合前は診断専用",
+      "units": [
+        "局所トークンJaccard類似度",
+        "元曲再検索順位"
+      ],
+      "invariances": [
+        "全体移調",
+        "元曲再検索における全体時間伸縮"
+      ],
+      "known_false_positives": [
+        "非自己類似度の多くが0で要確認閾値が低く、共通の短い断片を過大評価し得る"
+      ],
+      "known_false_negatives": [
+        "局所トークンを共有しない意味的な模倣や長い構造の模倣を見落とし得る"
+      ],
+      "prohibited_uses": [
+        "style_ranking",
+        "quality_acceptance",
+        "automatic_high_similarity_rejection"
+      ]
+    },
+  {
+    "id": "intensity_control_feasibility_v1",
+    "status": "rejected",
+    "implementation_path": "src/llm_musical_composer/intensity_control.py",
+    "entrypoint": "analyze_intensity_feasibility",
+    "evidence_reports": [
+      "docs/reports/2026-08-18-intensity-control-feasibility.md",
+      "docs/reports/2026-08-19-full-intensity-control-triplet.md"
+    ],
+    "rejection_reason": "三駆動軸と全曲分布の自動検査に合格した3分対照が、人間試聴では穏やかさから活発さではなく主に音符数の増減として知覚された",
+    "scope": "音符率、発音群率、velocityの三駆動軸を、はげしさの生成目標、順位、合否へ使う旧方式",
+      "units": [
+        "notes_per_second",
+        "attacks_per_second",
+        "normalized_velocity_level",
+        "time_weighted_polyphony"
+      ],
+      "invariances": [
+        "全体移調",
+        "入力順"
+      ],
+      "known_false_positives": [
+        "三駆動軸が単調でも知覚上のはげしさや自然さを保証しない"
+      ],
+      "known_false_negatives": [
+        "950音上限のため、音楽的に妥当でも高密度な参照を到達不能とする"
+      ],
+    "prohibited_uses": [
+      "generation_target",
+      "acceptance",
+      "ranking",
+      "public_control_claim"
+    ]
+  },
+    {
+      "id": "intensity_realization_descriptors_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/intensity_realization.py",
+      "entrypoint": "extract_intensity_realization",
+      "evidence_reports": [
+        "docs/reports/2026-08-19-intensity-realization-diversity.md"
+      ],
+      "scope": "音数を固定した比較素材の発音間隔、アクセント、音価、反復、上下声関係、低音保持の個別記述。聴感検証前は生成目標、順位、合否へ使わない",
+      "units": [
+        "milliseconds",
+        "MIDI_velocity",
+        "duration_to_IOI_ratio",
+        "event_ratio"
+      ],
+      "invariances": [
+        "音価比、反復率、上下声関係、低音時間比率は全体時間伸縮で不変",
+        "アクセント幅は一律のvelocity加算で不変"
+      ],
+      "known_false_positives": [
+        "記述値が意図方向へ変化しても、人間がはげしさとして知覚するとは限らない"
+      ],
+      "known_false_negatives": [
+        "調性、和声緊張、音色、演奏上の微細なタイミングなど未記述の方法によるはげしさを見落とし得る"
+      ],
+      "prohibited_uses": [
+        "generation_target",
+        "acceptance",
+        "ranking",
+        "public_control_claim"
+      ]
+    },
+    {
+      "id": "song_change_relations_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/song_change.py",
+      "entrypoint": "describe_song_change",
+      "evidence_reports": [
+        "docs/reports/2026-08-19-song-change-short-controls.md"
+      ],
+      "scope": "生成側で宣言済みの提示、変奏、対比、回帰、大区分間の実音関係を個別に記述する。3分と人間試聴の検証前は生成の合否や順位へ使わない",
+      "units": [
+        "sequence_similarity",
+        "normalized_onset_position_distance",
+        "semitones",
+        "pitch_class_jaccard"
+      ],
+      "invariances": [
+        "全体移調",
+        "全体時間伸縮",
+        "velocity変更",
+        "宣言energy変更"
+      ],
+      "known_false_positives": [
+        "関係記述が段階的に変わっても、人間が曲の変化として知覚するとは限らない"
+      ],
+      "known_false_negatives": [
+        "和声機能、ペダル表現、漸進的な展開など、音程列と発音位置だけでは表せない変化を見落とし得る"
+      ],
+      "prohibited_uses": [
+        "acceptance",
+        "ranking",
+        "public_control_claim"
+      ]
+    },
+    {
+      "id": "song_change_arrangement_selection_v1",
+      "status": "selection",
+      "implementation_path": "src/llm_musical_composer/song_change_arrangement.py",
+      "entrypoint": "derive_arrangement_triplet",
+      "evidence_reports": [
+        "docs/reports/2026-08-20-song-change-long-form-arrangement.md"
+      ],
+      "validated_controls": [
+        "独立した二つの3分中央候補で低側が中央より近く高側が中央より遠い配置を選択",
+        "四端点で音数、velocity分布、音高集合を保持",
+        "四端点で平均同時発音数を中央から5%以内に保持",
+        "四端点が長尺公開ハードゲートに合格"
+      ],
+      "scope": "対比フレーズ内の最大8使用箇所を一対一で再配置し、低側と高側の候補を内部選択する。人間試聴の合格前は公開フェーダーの達成判定に使わない",
+      "units": [
+        "relation_distance_maximum",
+        "relation_distance_median",
+        "relation_distance_sum"
+      ],
+      "invariances": [
+        "全体移調",
+        "全体時間伸縮",
+        "velocity変更"
+      ],
+      "known_false_positives": [
+        "内部距離が広がっても、人間には場面差でなく断片化または唐突さとして知覚され得る"
+      ],
+      "known_false_negatives": [
+        "和声機能、漸進的な展開、ペダル表現だけで作る有効な変化を選択対象にできない"
+      ],
+      "prohibited_uses": [
+        "acceptance",
+        "public_control_claim"
+      ]
+    },
+    {
+      "id": "long_form_material_development_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/material_development.py",
+      "entrypoint": "evaluate_material_development",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-piano-voices-and-typed-variations.md",
+        "docs/reports/2026-08-16-material-development-composition-run.md"
+      ],
+      "scope": "三分曲の素材内変化の記述。長尺候補の合否や順位には使わない",
+      "units": [
+        "三種類の変化率"
+      ],
+      "invariances": [
+        "全体時間伸縮"
+      ],
+      "known_false_positives": [
+        "変化率1.0の機械的交互変化を自然と誤認し得る"
+      ],
+      "known_false_negatives": [
+        "音楽的に有効な持続音や反復を単純と記述し得る"
+      ],
+      "prohibited_uses": [
+        "acceptance",
+        "ranking"
+      ]
+    },
+    {
+      "id": "harmonic_interval_profile_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/harmonic_style.py",
+      "entrypoint": "evaluate_harmonic_profile",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-transposition-invariant-harmonic-style.md"
+      ],
+      "scope": "鍵盤保持が重なる垂直音程クラスの分布。和声機能、進行、解決感は表さない",
+      "units": [
+        "interval_class_overlap_ratio"
+      ],
+      "invariances": [
+        "全体移調",
+        "全体時間伸縮",
+        "velocity",
+        "ペダルイベント"
+      ],
+      "known_false_positives": [
+        "垂直音程分布が近くても和声進行が異なり得る"
+      ],
+      "known_false_negatives": [
+        "同じ和声機能でもボイシング差で分布が外れ得る"
+      ],
+      "prohibited_uses": [
+        "acceptance",
+        "ranking",
+        "generation_loss"
+      ]
+    },
+    {
+      "id": "reference_structure_description_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/reference_structure.py",
+      "entrypoint": "analyze_note_structure",
+      "evidence_reports": [
+        "docs/reports/2026-08-16-reference-long-form-structure-analysis.md",
+        "docs/reports/2026-08-16-structure-boundary-null-control.md"
+      ],
+      "scope": "固定窓の境界、反復、活動量の記述。参照曲の正しい区分や階層は表さない",
+      "units": [
+        "normalized_position",
+        "cross_scale_support"
+      ],
+      "invariances": [
+        "全体時間伸縮",
+        "全体移調"
+      ],
+      "known_false_positives": [
+        "実配置の境界支持がブロック順列帰無配置を上回らない"
+      ],
+      "known_false_negatives": [
+        "変奏を含む音程・時間反復をほぼ検出できない"
+      ],
+      "prohibited_uses": [
+        "acceptance",
+        "ranking",
+        "generation_boundary_target"
+      ]
+    },
+    {
+      "id": "control_axis_brightness_descriptors_v1",
+      "status": "selection",
+      "implementation_path": "src/llm_musical_composer/control_axis_anchors.py",
+      "entrypoint": "extract_control_axis_descriptors",
+      "evidence_reports": [
+        "docs/reports/2026-08-24-control-axis-anchor-calibration.md"
+      ],
+      "validated_controls": [
+        "入力順変更で記述子が不変",
+        "全体移調で二つの方向記述子が不変"
+      ],
+      "scope": "参照SMFの調性プロファイルと主音相対の音級から、あかるさ基準曲候補を移調不変に順位付けする。基準曲の端点方向は初回匿名試聴に合格したが、生成制御の達成を表さない",
+      "units": [
+        "correlation_difference",
+        "weighted_ratio"
+      ],
+      "invariances": [
+        "入力順",
+        "全体移調"
+      ],
+      "known_false_positives": [
+        "長調らしさを知覚上のあかるさと誤認し得る",
+        "局所的な和声機能と音色を記述しない"
+      ],
+      "known_false_negatives": [
+        "演奏表現、音域、和声進行だけで生じるあかるさを見落とし得る"
+      ],
+      "prohibited_uses": [
+        "generation_target",
+        "acceptance",
+        "public_control_claim"
+      ]
+    },
+    {
+      "id": "control_axis_motion_descriptors_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/control_axis_anchors.py",
+      "entrypoint": "extract_control_axis_descriptors",
+      "evidence_reports": [
+        "docs/reports/2026-08-24-control-axis-anchor-calibration.md"
+      ],
+      "validated_controls": [
+        "全体時間伸縮で発音間隔が対応方向へ変化",
+        "同一発音時刻へ和音構成音を追加しても全記述子が不変"
+      ],
+      "scope": "参照SMFの局所発音間隔、無音、離鍵を個別に記述する。二回の匿名試聴で低・中・高の順序が成立しなかったため診断専用",
+      "units": [
+        "milliseconds",
+        "time_ratio",
+        "attack_ratio"
+      ],
+      "invariances": [
+        "入力順",
+        "同一発音時刻への音追加"
+      ],
+      "known_false_positives": [
+        "速いだけの曲を前進感があると誤認し得る",
+        "細かいが機械的な反復を過大評価し得る",
+        "予備匿名試聴で機械highが最も動きの弱い曲として知覚された"
+      ],
+      "known_false_negatives": [
+        "重い反復、強いユニゾン、長期的な加速だけで生じるうごきを見落とし得る"
+      ],
+      "prohibited_uses": [
+        "generation_target",
+        "acceptance",
+        "ranking",
+        "public_control_claim"
+      ]
+    },
+    {
+      "id": "control_axis_power_descriptors_v1",
+      "status": "diagnostic_only",
+      "implementation_path": "src/llm_musical_composer/control_axis_anchors.py",
+      "entrypoint": "extract_control_axis_descriptors",
+      "evidence_reports": [
+        "docs/reports/2026-08-24-control-axis-anchor-calibration.md"
+      ],
+      "validated_controls": [
+        "全音への一律velocity加算で全記述子が不変",
+        "低音追加だけでは全記述子が正方向へ変化しない"
+      ],
+      "scope": "参照SMFのアクセント対比、強弱幅、相対低音支点、広い協和的重音を個別に記述する。二回の匿名試聴で低・中・高の順序が成立しなかったため診断専用",
+      "units": [
+        "MIDI_velocity_difference",
+        "note_duration_ratio",
+        "attack_ratio"
+      ],
+      "invariances": [
+        "入力順",
+        "全音への一律velocity加算"
+      ],
+      "known_false_positives": [
+        "不自然な強弱差、低音過多、和音過多を力強さと誤認し得る",
+        "予備匿名試聴で機械lowとhighが同程度に知覚された"
+      ],
+      "known_false_negatives": [
+        "音色、奏法、声部合流、重い反復だけで生じるパワーを見落とし得る"
+      ],
+      "prohibited_uses": [
+        "generation_target",
+        "acceptance",
+        "ranking",
+        "public_control_claim"
+      ]
+    },
+    {
+      "id": "closure_rule_discrimination_v1",
+      "status": "rejected",
+      "implementation_path": "src/llm_musical_composer/ending_closure.py",
+      "entrypoint": "evaluate_ending_discrimination",
+      "evidence_reports": [
+        "docs/reports/2026-08-11-structure-evaluation-and-closure-control.md"
+      ],
+      "rejection_reason": "参照232曲で実終盤勝率0.349、95%信頼区間0.289から0.414となり疑似終盤を識別できなかった",
+      "scope": "終盤6指標による終止感識別",
+      "units": [
+        "paired_win_rate"
+      ],
+      "invariances": [
+        "末尾無音追加"
+      ],
+      "known_false_positives": [
+        "均一音列を終止ありとし得た既知問題がある"
+      ],
+      "known_false_negatives": [
+        "実終盤より疑似終盤を近いと判定する曲が多い指標がある"
+      ]
+    },
+    {
+      "id": "closure_sonnet_4_6_v6",
+      "status": "rejected",
+      "implementation_path": "src/llm_musical_composer/closure_judge.py",
+      "entrypoint": "evaluate_revision_predictions",
+      "evidence_reports": [
+        "docs/reports/2026-08-11-closure-judge-protocol-revision.md"
+      ],
+      "rejection_reason": "判定可能6組の順序一貫性2組、人間判断との両順一致0組で停止条件に不合格だった",
+      "scope": "Claude Sonnet 4.6 few-shot終止感判定v6",
+      "units": [
+        "five_point_score",
+        "pair_preference"
+      ],
+      "invariances": [],
+      "known_false_positives": [
+        "人間が判定不能とした例でも全応答が情報十分と判定した"
+      ],
+      "known_false_negatives": [
+        "入力順反転で判定が変わる"
+      ]
+    },
+    {
+      "id": "fixed_window_structure_generation_target_v1",
+      "status": "rejected",
+      "implementation_path": "src/llm_musical_composer/structure_null_controls.py",
+      "entrypoint": "build_null_control_summary",
+      "evidence_reports": [
+        "docs/reports/2026-08-16-structure-boundary-null-control.md"
+      ],
+      "rejection_reason": "実配置の追加境界支持は23個のブロック順列帰無配置を上回らず完全順列p値は0.75だった",
+      "scope": "固定窓境界を区間数、境界位置、階層深さの生成条件へ昇格する使用法",
+      "units": [
+        "extra_cross_scale_support"
+      ],
+      "invariances": [
+        "全体時間伸縮"
+      ],
+      "known_false_positives": [
+        "固定格子だけで同程度の持続境界支持が生じる"
+      ],
+      "known_false_negatives": [
+        "現行窓幅で捉えられない知覚境界を見落とし得る"
+      ]
+    },
+    {
+      "id": "surface_4axis_style_similarity_v1",
+      "status": "rejected",
+      "implementation_path": "src/llm_musical_composer/style_target.py",
+      "entrypoint": "evaluate_style_features",
+      "evidence_reports": [
+        "docs/reports/2026-08-18-style-target-feasibility-and-evaluation-semantics.md",
+        "docs/reports/2026-08-18-transposition-invariant-harmonic-style.md"
+      ],
+      "rejection_reason": "表面4軸は全体移調で攻略でき、旋律、リズム、和声、長期構成の類似を示さない",
+      "scope": "表面4軸を参照作風の総合成功判定または生成lossとして使う使用法",
+      "units": [
+        "axis_normalized_distance"
+      ],
+      "invariances": [],
+      "known_false_positives": [
+        "v26の1半音移調を改善候補のように順位付けし得る"
+      ],
+      "known_false_negatives": [
+        "聴感上問題なしのv26を目標範囲外とする軸がある"
+      ]
+    }
+  ],
+  "policies": {
+    "acceptance": [
+      "long_form_publication_gates_v26"
+    ],
+    "ranking": [
+      "pilot_reference_axis_selection_v1",
+      "pilot_material_uniformity_selection_v1",
+      "reference_profile_selection_v1",
+      "song_change_arrangement_selection_v1",
+      "control_axis_brightness_descriptors_v1"
+    ],
+    "diagnostic": [
+      "surface_style_target_4axis_v1",
+      "reference_copy_risk_v1",
+      "intensity_realization_descriptors_v1",
+      "song_change_relations_v1",
+      "long_form_material_development_v1",
+      "harmonic_interval_profile_v1",
+      "reference_structure_description_v1",
+      "control_axis_motion_descriptors_v1",
+      "control_axis_power_descriptors_v1"
+    ],
+    "forbidden": [
+      "closure_rule_discrimination_v1",
+      "closure_sonnet_4_6_v6",
+      "fixed_window_structure_generation_target_v1",
+      "surface_4axis_style_similarity_v1",
+      "intensity_control_feasibility_v1"
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "take_id": "take-02",
+  "title": "陽だまりから静かな夕暮れへ",
+  "target_profile": "solo_piano_3m_v2",
+  "generation_commit": "9814490af7221b5d8895d062b09f66138b4e7145",
+  "approved_flow": {
+    "file_sha256": "a6217fbf154fc1e44f82e607eb0128daa6b541456de98c3d3f6ad5d3986b14e6",
+    "content_sha256": "1eaa89d1be5a2a2ce2d0028ffaccc21ef7cbbb7530b9d5ea4721bf6ce7219270"
+  },
+  "composition_bundle": {
+    "schema_version": 3,
+    "composition_id": "co-creation-control-baseline-01",
+    "manifest_sha256": "6f6b7beb71952596d01a0fa4b306930c2dc18515d6567b267894e9fadde5b8cd"
+  },
+  "generation_trial_bundle": {
+    "schema_version": 2,
+    "trial_id": "co-creation-control-baseline-01",
+    "outcome": "complete",
+    "issues": []
+  },
+  "artifacts": {
+    "final.mid": {
+      "sha256": "ae4d48152fc11c318497593855c3bc5383ac337ab377004b25036497ee258f0b"
+    },
+    "score.musicxml": {
+      "sha256": "d337174e49f828610ba153353dc1c14faee626ab744dfd04767f1e9690cc25cb"
+    }
+  },
+  "human_evaluation": {
+    "date": "2026-09-17",
+    "scale": "1-5",
+    "three_minute_piece": 4,
+    "suitable_as_initial_public_example": 5,
+    "concern": "全体的に調性が同じで一辺倒に感じられる。",
+    "strength": "曲としての構成がよくできており、終止にも違和感がない。"
+  },
+  "verification": {
+    "composition_bundle_valid": true,
+    "generation_trial_bundle_valid": true,
+    "offline_replay_matches_artifacts": true
+  }
+}

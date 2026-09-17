@@ -1,0 +1,15 @@
+include CHANGELOG.md
+include LICENSE
+include README.md
+include pyproject.toml
+recursive-include examples *.json *.md
+include scripts/smoke-installed-public.py
+include scripts/check-distributions.py
+prune examples/public-music
+prune .appendix
+prune .logs
+prune .prompts
+prune .tmp
+prune tests
+global-exclude *.py[cod]
+global-exclude __pycache__

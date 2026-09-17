@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AllegroMoltoV/scoim/schemas/realization-response-1.schema.json",
+  "title": "SCoIM solo-piano realization response 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile",
+    "plan_choice",
+    "score_spec",
+    "performance_spec",
+    "target_assertions"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "profile": {"type": "string", "const": "solo_piano_3m_v1"},
+    "plan_choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tonal_center",
+        "mode",
+        "harmonic_focus_by_section",
+        "contrasts_with_by_section"
+      ],
+      "properties": {
+        "tonal_center": {"type": "integer", "minimum": 0, "maximum": 11},
+        "mode": {"type": "string", "enum": ["major", "minor"]},
+        "harmonic_focus_by_section": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/harmonic_focus"}
+        },
+        "contrasts_with_by_section": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/section_contrast"}
+        }
+      }
+    },
+    "score_spec": {"$ref": "#/$defs/dsl"},
+    "performance_spec": {"$ref": "#/$defs/dsl"},
+    "target_assertions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/assertion"}
+    }
+  },
+  "$defs": {
+    "harmonic_focus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_id", "root_pitch_class"],
+      "properties": {
+        "section_id": {"type": "string", "minLength": 1},
+        "root_pitch_class": {"type": "integer", "minimum": 0, "maximum": 11}
+      }
+    },
+    "section_contrast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_id", "contrasts_with_section_id"],
+      "properties": {
+        "section_id": {"type": "string", "minLength": 1},
+        "contrasts_with_section_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "dsl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "source"],
+      "properties": {
+        "format": {"type": "string", "const": "pipeline-dsl-v1"},
+        "source": {"type": "string", "minLength": 1}
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_id", "interpretation", "tests"],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "interpretation": {"type": "string", "minLength": 1},
+        "tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/stage_tests"}
+        }
+      }
+    },
+    "stage_tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "operations"],
+      "properties": {
+        "stage": {
+          "type": "string",
+          "enum": ["piece_plan", "score_spec", "performance_spec"]
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/test_operation"}
+        }
+      }
+    },
+    "test_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "path", "value"],
+      "properties": {
+        "op": {"type": "string", "const": "test"},
+        "path": {"type": "string", "minLength": 1},
+        "value": {
+          "anyOf": [
+            {"type": "string"},
+            {"type": "number"},
+            {"type": "boolean"}
+          ]
+        }
+      }
+    }
+  }
+}

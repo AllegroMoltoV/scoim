@@ -1,0 +1,119 @@
+{
+  "document_type": "script",
+  "schema_version": "0.4.0",
+  "document_id": "basic-composition",
+  "revision": 1,
+  "status": "validated",
+  "source_flow": {
+    "document_id": "basic-flow",
+    "revision": 1,
+    "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "script": {
+    "title": "基本縦断",
+    "brief": "主題を提示し、短い遷移を経て変奏し、終止する。",
+    "performance_setup": {
+      "instrumentation": "solo_piano",
+      "target_duration_seconds": 180,
+      "performance_directions": {
+        "statement-expression": {
+          "target": {"type": "section", "id": "statement"},
+          "performance_aspects": ["timing", "dynamics"],
+          "description": "句の終わりを少し味わい、音量に穏やかな山を作る。"
+        }
+      }
+    },
+    "root_section_id": "whole",
+    "sections": {
+      "whole": {
+        "parent_section_id": null,
+        "order": 0,
+        "role": "whole",
+        "description": "曲全体"
+      },
+      "statement": {
+        "parent_section_id": "whole",
+        "order": 0,
+        "role": "statement",
+        "relative_length": 1,
+        "description": "主題を提示する。"
+      },
+      "bridge": {
+        "parent_section_id": "whole",
+        "order": 1,
+        "role": "transition",
+        "relative_length": 0.25,
+        "description": "再提示へ移る。"
+      },
+      "return": {
+        "parent_section_id": "whole",
+        "order": 2,
+        "role": "return",
+        "relative_length": 1,
+        "description": "主題を変奏して再提示する。"
+      },
+      "release": {
+        "parent_section_id": "whole",
+        "order": 3,
+        "role": "release",
+        "relative_length": 0.25,
+        "description": "主音で終止する。"
+      }
+    },
+    "materials": {
+      "theme": {"description": "中心となる短い旋律。"},
+      "support": {"description": "主題を支える伴奏。"},
+      "bridge": {"description": "再提示へ向かう短い動き。"},
+      "ending": {"description": "終止の長音。"}
+    },
+    "material_placements": {
+      "theme-first": {
+        "section_id": "statement",
+        "material_id": "theme",
+        "role": "foreground"
+      },
+      "support-first": {
+        "section_id": "statement",
+        "material_id": "support",
+        "role": "accompaniment"
+      },
+      "bridge-only": {
+        "section_id": "bridge",
+        "material_id": "bridge",
+        "role": "foreground"
+      },
+      "theme-return": {
+        "section_id": "return",
+        "material_id": "theme",
+        "role": "foreground"
+      },
+      "support-return": {
+        "section_id": "return",
+        "material_id": "support",
+        "role": "accompaniment"
+      },
+      "ending-only": {
+        "section_id": "release",
+        "material_id": "ending",
+        "role": "foreground"
+      }
+    },
+    "script_element_variation_relations": {
+      "theme-varied": {
+        "source": {"type": "material_placement", "id": "theme-first"},
+        "target": {"type": "material_placement", "id": "theme-return"},
+        "preserve": ["冒頭の輪郭"],
+        "change": ["リズム"],
+        "description": "再提示では輪郭を残してリズムを変える。"
+      }
+    },
+    "material_placement_transitions": {
+      "to-return": {
+        "source_material_placement_id": "theme-first",
+        "transition_material_placement_id": "bridge-only",
+        "target_material_placement_id": "theme-return",
+        "description": "主題から再提示へ移る。"
+      }
+    }
+  }
+}

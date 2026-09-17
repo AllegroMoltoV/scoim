@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AllegroMoltoV/scoim/schemas/script-compilation-response-1.schema.json",
+  "title": "SCoIM script compilation response 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["script", "scene_section_mappings"],
+  "properties": {
+    "script": {
+      "$ref": "proposal-response-1.schema.json"
+    },
+    "scene_section_mappings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scene_id", "section_ids"],
+        "properties": {
+          "scene_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+          "section_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"}
+          }
+        }
+      }
+    }
+  }
+}

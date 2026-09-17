@@ -1,0 +1,64 @@
+{
+  "phase3": {
+    "plan_choice": {"tonal_center": 9, "mode": "minor"},
+    "divisions": 12,
+    "length_units_by_score_unit": {
+      "score-unit-texture": 48,
+      "score-unit-release": 12
+    },
+    "harmonies_by_score_unit": {
+      "score-unit-texture": [
+        {"harmony_id": "h-texture", "at_units": 0, "duration_units": 48, "root_pitch_class": 9, "quality": "minor"}
+      ],
+      "score-unit-release": [
+        {"harmony_id": "h-release", "at_units": 0, "duration_units": 12, "root_pitch_class": 9, "quality": "minor"}
+      ]
+    }
+  },
+  "phase4": {
+    "notes_by_material_placement": {
+      "wide-theme-first": [
+        {"score_note_id": "n-wide-upper-1", "at_units": 0, "duration_units": 12, "pitch": 69, "voice": "upper"},
+        {"score_note_id": "n-wide-lower-1", "at_units": 12, "duration_units": 12, "pitch": 45, "voice": "lower"},
+        {"score_note_id": "n-wide-upper-2", "at_units": 24, "duration_units": 24, "pitch": 72, "voice": "upper"}
+      ]
+    }
+  },
+  "phase5": {
+    "notes_by_material_placement": {
+      "offset-support-first": [
+        {"score_note_id": "n-offset-1", "at_units": 6, "duration_units": 12, "pitch": 40, "voice": "lower"},
+        {"score_note_id": "n-offset-2", "at_units": 18, "duration_units": 18, "pitch": 52, "voice": "lower"}
+      ]
+    }
+  },
+  "phase6": {
+    "ending_notes_by_material_placement": {
+      "ending-only": [
+        {"score_note_id": "n-ending-upper", "at_units": 0, "duration_units": 12, "pitch": 69, "voice": "upper"},
+        {"score_note_id": "n-ending-lower", "at_units": 0, "duration_units": 12, "pitch": 45, "voice": "lower"}
+      ]
+    },
+    "directions_by_score_unit": {
+      "score-unit-texture": [],
+      "score-unit-release": []
+    }
+  },
+  "phase7": {
+    "performance_id": "multivoice-performance",
+    "target_duration_ms": 180000,
+    "default_velocity": 62,
+    "timing_budget_id": "subtle-v1",
+    "section_performances": [
+      {
+        "section_id": "whole",
+        "timing_profile": "neutral",
+        "timing_amount": "subtle",
+        "dynamics_profile": "steady",
+        "articulation_profile": "score",
+        "coordination_profile": "aligned",
+        "pedal_profile": "harmony_legato"
+      }
+    ]
+  }
+}

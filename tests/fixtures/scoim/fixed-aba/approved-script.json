@@ -1,0 +1,148 @@
+{
+  "approval": {
+    "content_sha256": "d720cc45cfb022b48fd273cac2b3e2d5fead585a13c5b940a49350cd289b0de4"
+  },
+  "document_id": "evening_return",
+  "revision": 1,
+  "schema_version": "0.1.0",
+  "script": {
+    "brief": "\u9759\u304b\u306b\u59cb\u307e\u308a\u3001\u4e3b\u984c\u3078\u623b\u3063\u3066\u9589\u3058\u308b\u3002",
+    "materials": {
+      "cadence": {
+        "description": "\u9759\u304b\u306a\u7d42\u6b62\u7d20\u6750\u3002",
+        "kind": "ending"
+      },
+      "connector": {
+        "description": "\u77ed\u3044\u3064\u306a\u304e\u3002",
+        "kind": "transition"
+      },
+      "contrast": {
+        "description": "\u5e83\u304c\u308b\u5bfe\u7167\u7d20\u6750\u3002",
+        "kind": "contrast"
+      },
+      "theme": {
+        "description": "\u5915\u66ae\u308c\u306e\u4e2d\u5fc3\u4e3b\u984c\u3002",
+        "kind": "theme"
+      }
+    },
+    "performance_setup": {
+      "instrumentation": "solo_piano",
+      "performance_directions": {
+        "clear_return": {
+          "description": "\u5192\u982d\u3088\u308a\u6253\u9375\u3092\u63c3\u3048\u3066\u7c21\u6f54\u306b\u9032\u3081\u308b\u3002",
+          "relative_to": {
+            "id": "statement",
+            "type": "section"
+          },
+          "target": {
+            "id": "return",
+            "type": "section"
+          }
+        },
+        "quiet_opening": {
+          "description": "\u5f37\u3055\u3092\u63a7\u3048\u3001\u6642\u9593\u3092\u5c11\u3057\u63fa\u3089\u3059\u3002",
+          "target": {
+            "id": "statement",
+            "type": "section"
+          }
+        }
+      },
+      "target_duration_seconds": 180
+    },
+    "placements": {
+      "bridge_ab": {
+        "material_id": "connector",
+        "section_id": "bridge"
+      },
+      "cadence_last": {
+        "material_id": "cadence",
+        "section_id": "release"
+      },
+      "contrast_first": {
+        "material_id": "contrast",
+        "section_id": "contrast"
+      },
+      "theme_first": {
+        "material_id": "theme",
+        "section_id": "statement"
+      },
+      "theme_return": {
+        "material_id": "theme",
+        "section_id": "return"
+      }
+    },
+    "root_section_id": "whole",
+    "sections": {
+      "bridge": {
+        "description": "\u5bfe\u7167\u90e8\u3078\u3064\u306a\u3050\u3002",
+        "order": 1,
+        "parent_section_id": "whole",
+        "relative_length": 1,
+        "role": "transition"
+      },
+      "contrast": {
+        "description": "\u666f\u8272\u3092\u958b\u304f\u3002",
+        "order": 2,
+        "parent_section_id": "whole",
+        "relative_length": 4,
+        "role": "contrast"
+      },
+      "release": {
+        "description": "\u4f59\u97fb\u3092\u6b8b\u3057\u3066\u9589\u3058\u308b\u3002",
+        "order": 4,
+        "parent_section_id": "whole",
+        "relative_length": 2,
+        "role": "release"
+      },
+      "return": {
+        "description": "\u4e3b\u984c\u3078\u623b\u308b\u3002",
+        "order": 3,
+        "parent_section_id": "whole",
+        "relative_length": 4,
+        "role": "return"
+      },
+      "statement": {
+        "description": "\u4e3b\u984c\u3092\u793a\u3059\u3002",
+        "order": 0,
+        "parent_section_id": "whole",
+        "relative_length": 4,
+        "role": "statement"
+      },
+      "whole": {
+        "description": "\u66f2\u5168\u4f53\u3002",
+        "order": 0,
+        "parent_section_id": null,
+        "role": "whole"
+      }
+    },
+    "title": "\u5915\u66ae\u308c\u306e\u56de\u5e30",
+    "transitions": {
+      "statement_to_contrast": {
+        "connector_placement_id": "bridge_ab",
+        "description": "\u4e3b\u984c\u304b\u3089\u5bfe\u7167\u90e8\u3078\u6ed1\u3089\u304b\u306b\u3064\u306a\u3050\u3002",
+        "from_placement_id": "theme_first",
+        "to_placement_id": "contrast_first"
+      }
+    },
+    "variations": {
+      "return_variation": {
+        "change": [
+          "\u6642\u9593\u306e\u63fa\u308c"
+        ],
+        "description": "\u4e3b\u984c\u3092\u63c3\u3048\u3066\u623b\u3059\u3002",
+        "preserve": [
+          "\u4e3b\u984c\u306e\u7279\u5fb4"
+        ],
+        "source": {
+          "id": "statement",
+          "type": "section"
+        },
+        "target": {
+          "id": "return",
+          "type": "section"
+        }
+      }
+    }
+  },
+  "status": "approved"
+}

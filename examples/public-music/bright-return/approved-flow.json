@@ -1,0 +1,56 @@
+{
+  "approval": {
+    "content_sha256": "1eaa89d1be5a2a2ce2d0028ffaccc21ef7cbbb7530b9d5ea4721bf6ce7219270"
+  },
+  "document_id": "product_evidence_01",
+  "document_type": "flow",
+  "instrumentation": "solo_piano",
+  "overall_flow": "約3分。明るく親しみやすい音楽が自然に広がり、中ほどで一度だけ短い陰りを見せます。その後は冒頭の親しみやすさを少し穏やかにして取り戻し、最後は余韻を残しながら落ち着いて終わります。",
+  "revision": 1,
+  "scenes": [
+    {
+      "heard_as": "軽やかで覚えやすい動きから始まり、晴れた朝に歩き出すような明るさを感じさせます。",
+      "length_class": "medium",
+      "name": "親しみやすい始まり",
+      "relation_to_previous": "最初の場面です。曲全体の中心となる親しみやすい音楽を示します。",
+      "scene_id": "scene-001",
+      "transition_to_next": "同じ明るさを保ちながら、音の広がりと動きを少しずつ増やします。"
+    },
+    {
+      "heard_as": "弾むような楽しさが増し、景色が開けていくようにのびやかになります。",
+      "length_class": "medium",
+      "name": "明るさが広がる",
+      "relation_to_previous": "最初の音楽を受け継ぎつつ、動きを増やして、より晴れやかな表情にします。",
+      "scene_id": "scene-002",
+      "transition_to_next": "勢いをゆっくり弱め、音の間に少し迷うような気配を混ぜていきます。"
+    },
+    {
+      "heard_as": "ふと足を止め、遠くを振り返るような寂しさが現れます。暗さを長引かせず、静かに受け止める場面です。",
+      "length_class": "short",
+      "name": "一度だけ差す陰り",
+      "relation_to_previous": "それまでの明るさから離れ、曲中で唯一の陰りを作ります。",
+      "scene_id": "scene-003",
+      "transition_to_next": "小さな安心の気配を少しずつ戻し、重さをほどいていきます。"
+    },
+    {
+      "heard_as": "冒頭の親しみやすい音楽が戻りますが、弾む感じは控えめになり、陰りを通ったあとの優しい表情に変わります。",
+      "length_class": "medium",
+      "name": "穏やかに戻る笑顔",
+      "relation_to_previous": "陰りから明るさへ戻ります。最初と同じ音楽を使いながら、速さや強さを落ち着かせ、懐かしく聞こえるようにします。",
+      "scene_id": "scene-004",
+      "transition_to_next": "動きを徐々に減らし、ひとつひとつの響きを長く残して終わりへ向かいます。"
+    },
+    {
+      "heard_as": "温かな気持ちを保ったまま歩みがゆるやかになり、安心して腰を下ろすように静かに終わります。",
+      "length_class": "long",
+      "name": "静かな夕暮れ",
+      "relation_to_previous": "戻ってきた明るい音楽の一部をさらに簡素にし、楽しさよりも安らぎを前に出します。",
+      "scene_id": "scene-005",
+      "transition_to_next": "最後の響きが自然に消えるまで待ち、余韻を残して曲を閉じます。"
+    }
+  ],
+  "schema_version": "0.1.0",
+  "status": "approved",
+  "target_duration": 180.0,
+  "title": "陽だまりから静かな夕暮れへ"
+}

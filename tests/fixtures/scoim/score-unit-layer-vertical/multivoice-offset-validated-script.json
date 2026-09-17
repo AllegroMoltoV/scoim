@@ -1,0 +1,69 @@
+{
+  "document_type": "script",
+  "schema_version": "0.3.0",
+  "document_id": "multivoice-composition",
+  "revision": 1,
+  "status": "validated",
+  "source_flow": {
+    "document_id": "multivoice-flow",
+    "revision": 1,
+    "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "script": {
+    "title": "複数声部縦断",
+    "brief": "一つの考えを上下声へ広げ、別の伴奏と異なる範囲で重ねる。",
+    "performance_setup": {
+      "instrumentation": "solo_piano",
+      "target_duration_seconds": 180,
+      "performance_directions": {}
+    },
+    "root_section_id": "whole",
+    "sections": {
+      "whole": {
+        "parent_section_id": null,
+        "order": 0,
+        "role": "whole",
+        "description": "曲全体"
+      },
+      "texture": {
+        "parent_section_id": "whole",
+        "order": 0,
+        "role": "statement",
+        "relative_length": 4,
+        "description": "上下声に広がる主題を示す。"
+      },
+      "release": {
+        "parent_section_id": "whole",
+        "order": 1,
+        "role": "release",
+        "relative_length": 1,
+        "description": "主音で終止する。"
+      }
+    },
+    "materials": {
+      "wide-theme": {"description": "上下声にまたがる一つの考え。"},
+      "offset-support": {"description": "途中から入り、主題より先に終わる伴奏。"},
+      "ending": {"description": "終止の長音。"}
+    },
+    "material_placements": {
+      "wide-theme-first": {
+        "section_id": "texture",
+        "material_id": "wide-theme",
+        "role": "foreground"
+      },
+      "offset-support-first": {
+        "section_id": "texture",
+        "material_id": "offset-support",
+        "role": "accompaniment"
+      },
+      "ending-only": {
+        "section_id": "release",
+        "material_id": "ending",
+        "role": "foreground"
+      }
+    },
+    "script_element_variation_relations": {},
+    "material_placement_transitions": {},
+    "performance_direction_comparison_requirements": {}
+  }
+}

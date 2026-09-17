@@ -1,0 +1,117 @@
+[
+  {
+    "script": {
+      "title": "窓辺の午後",
+      "brief": "静かに始まり、主題へ戻って閉じる。",
+      "root_section_id": "whole",
+      "sections": [
+        {"id": "whole", "description": "曲全体。", "parent_section_id": null, "role": "whole", "relative_length": null},
+        {"id": "statement", "description": "主題を示す。", "parent_section_id": "whole", "relative_length": 4, "role": "statement"},
+        {"id": "bridge", "description": "対照部へつなぐ。", "parent_section_id": "whole", "relative_length": 1, "role": "transition"},
+        {"id": "contrast", "description": "景色を開く。", "parent_section_id": "whole", "relative_length": 4, "role": "contrast"},
+        {"id": "return", "description": "主題へ戻る。", "parent_section_id": "whole", "relative_length": 4, "role": "return"},
+        {"id": "release", "description": "余韻を残して閉じる。", "parent_section_id": "whole", "relative_length": 2, "role": "release"}
+      ],
+      "materials": [
+        {"id": "cadence", "description": "静かな終止素材。", "kind": "ending"},
+        {"id": "connector", "description": "短いつなぎ。", "kind": "transition"},
+        {"id": "contrast", "description": "広がる対照素材。", "kind": "contrast"},
+        {"id": "theme", "description": "夕暮れの中心主題。", "kind": "theme"}
+      ],
+      "placements": [
+        {"id": "bridge_ab", "material_id": "connector", "section_id": "bridge"},
+        {"id": "cadence_last", "material_id": "cadence", "section_id": "release"},
+        {"id": "contrast_first", "material_id": "contrast", "section_id": "contrast"},
+        {"id": "theme_first", "material_id": "theme", "section_id": "statement"},
+        {"id": "theme_return", "material_id": "theme", "section_id": "return"}
+      ],
+      "variations": [
+        {
+          "id": "return_variation",
+          "change": ["時間の揺れ"],
+          "description": "主題を揃えて戻す。",
+          "preserve": ["主題の特徴"],
+          "source": {"id": "statement", "type": "section"},
+          "target": {"id": "return", "type": "section"}
+        }
+      ],
+      "transitions": [
+        {
+          "id": "statement_to_contrast",
+          "connector_placement_id": "bridge_ab",
+          "description": "主題から対照部へ滑らかにつなぐ。",
+          "from_placement_id": "theme_first",
+          "to_placement_id": "contrast_first"
+        }
+      ],
+      "performance_directions": [
+        {
+          "id": "clear_return",
+          "target_type": "section",
+          "target_id": "return",
+          "relative_to_type": "section",
+          "relative_to_id": "statement",
+          "description": "冒頭より打鍵を揃えて簡潔に進める。"
+        },
+        {
+          "id": "quiet_opening",
+          "target_type": "section",
+          "target_id": "statement",
+          "relative_to_type": null,
+          "relative_to_id": null,
+          "description": "強さを控え、時間を少し揺らす。"
+        }
+      ],
+      "requirements": []
+    },
+    "scene_section_mappings": [
+      {"scene_id": "scene-001", "section_ids": ["statement"]},
+      {"scene_id": "scene-002", "section_ids": ["bridge", "contrast"]},
+      {"scene_id": "scene-003", "section_ids": ["return", "release"]}
+    ]
+  },
+  {
+    "tonal_center": 0,
+    "mode": "major",
+    "contrast_descriptions": ["Open the register"]
+  },
+  {
+    "harmonies": [
+      [{"duration_units": 2, "root_pitch_class": 7, "quality": "major"}],
+      [{"duration_units": 4, "root_pitch_class": 5, "quality": "major"}],
+      [{"duration_units": 4, "root_pitch_class": 0, "quality": "major"}]
+    ]
+  },
+  {
+    "melodies": [
+      {"foreground_voice": "upper", "notes": [{"at_units": 0, "duration_units": 4, "pitch": 67}]},
+      {"foreground_voice": "upper", "notes": [{"at_units": 0, "duration_units": 4, "pitch": 67}]}
+    ]
+  },
+  {
+    "transition_melodies": [
+      {"foreground_voice": "upper", "notes": [{"at_units": 0, "duration_units": 2, "pitch": 69}]}
+    ]
+  },
+  {
+    "accompaniments": [
+      {"events": [{"at_units": 0, "preferred_duration_units": 4, "degree": "root", "preferred_register_zone": "bass", "articulations": []}]},
+      {"events": [{"at_units": 0, "preferred_duration_units": 4, "degree": "root", "preferred_register_zone": "bass", "articulations": []}]}
+    ]
+  },
+  {
+    "transition_accompaniments": [
+      {"events": [{"at_units": 0, "preferred_duration_units": 2, "degree": "root", "preferred_register_zone": "bass", "articulations": []}]}
+    ]
+  },
+  {
+    "performances": [
+      {"timing_profile": "flow", "timing_amount": "subtle", "dynamics_profile": "shape", "articulation_profile": "legato", "coordination_profile": "aligned", "pedal_profile": "phrase_legato"}
+    ]
+  },
+  {
+    "performances": [
+      {"timing_profile": "flow", "timing_amount": "subtle", "dynamics_profile": "shape", "articulation_profile": "legato", "coordination_profile": "aligned", "pedal_profile": "phrase_legato"}
+    ]
+  }
+]

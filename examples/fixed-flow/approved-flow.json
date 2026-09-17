@@ -1,0 +1,40 @@
+{
+  "document_type": "flow",
+  "schema_version": "0.1.0",
+  "document_id": "flow-001",
+  "revision": 1,
+  "status": "approved",
+  "approval": {
+    "content_sha256": "ed9d86b5d3b2b8528d84af0ba77d6579863746e3fff2053f81f7c9728e0b4618"
+  },
+  "title": "窓辺の午後",
+  "overall_flow": "主題が現れ、景色が広がり、少し変えて戻って閉じる。",
+  "instrumentation": "solo_piano",
+  "target_duration": 180,
+  "scenes": [
+    {
+      "scene_id": "scene-001",
+      "name": "主題",
+      "length_class": "short",
+      "heard_as": "静かに始まる。",
+      "relation_to_previous": "曲の始まり。",
+      "transition_to_next": "短いつなぎへ進む。"
+    },
+    {
+      "scene_id": "scene-002",
+      "name": "広がり",
+      "length_class": "medium",
+      "heard_as": "景色が広がる。",
+      "relation_to_previous": "少し動きを増す。",
+      "transition_to_next": "主題へ戻る。"
+    },
+    {
+      "scene_id": "scene-003",
+      "name": "帰還",
+      "length_class": "long",
+      "heard_as": "主題が変化して戻る。",
+      "relation_to_previous": "広がりを受けて落ち着く。",
+      "transition_to_next": "余韻を残して閉じる。"
+    }
+  ]
+}

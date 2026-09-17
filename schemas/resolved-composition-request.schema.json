@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.llm-musical-composer/schemas/resolved-composition-request.schema.json",
+  "title": "Resolved composition request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "preset",
+    "normalized_request_sha256",
+    "reference",
+    "controls"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "preset": {
+      "const": "solo_piano_3m_v1"
+    },
+    "normalized_request_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/resolvedReference"
+        },
+        {
+          "$ref": "#/$defs/unavailableReference"
+        },
+        {
+          "$ref": "#/$defs/unresolvedDefaultReference"
+        }
+      ]
+    },
+    "controls": {
+      "type": "object",
+      "maxProperties": 0,
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "resolvedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "name",
+        "sha256",
+        "selection_method"
+      ],
+      "properties": {
+        "state": {
+          "const": "resolved"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selection_method": {
+          "enum": [
+            "explicit",
+            "automatic_medoid",
+            "automatic_named_default"
+          ]
+        }
+      }
+    },
+    "unavailableReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "requested_name",
+        "reason"
+      ],
+      "properties": {
+        "state": {
+          "const": "unavailable"
+        },
+        "requested_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "unresolvedDefaultReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reason"
+      ],
+      "properties": {
+        "state": {
+          "const": "unresolved_default"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

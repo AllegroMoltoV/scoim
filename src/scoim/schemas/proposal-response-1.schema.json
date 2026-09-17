@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AllegroMoltoV/scoim/schemas/proposal-response-1.schema.json",
+  "title": "SCoIM proposal response 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "brief",
+    "root_section_id",
+    "sections",
+    "materials",
+    "placements",
+    "variations",
+    "transitions",
+    "performance_directions",
+    "requirements"
+  ],
+  "properties": {
+    "title": {"$ref": "#/$defs/text"},
+    "brief": {"$ref": "#/$defs/text"},
+    "root_section_id": {"$ref": "#/$defs/id"},
+    "sections": {"type": "array", "items": {"$ref": "#/$defs/section"}},
+    "materials": {"type": "array", "items": {"$ref": "#/$defs/material"}},
+    "placements": {"type": "array", "items": {"$ref": "#/$defs/placement"}},
+    "variations": {"type": "array", "items": {"$ref": "#/$defs/variation"}},
+    "transitions": {"type": "array", "items": {"$ref": "#/$defs/transition"}},
+    "performance_directions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/performanceDirection"}
+    },
+    "requirements": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/requirement"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "text": {"type": "string", "minLength": 1},
+    "nullableId": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "nullableNumber": {
+      "anyOf": [{"type": "number", "exclusiveMinimum": 0}, {"type": "null"}]
+    },
+    "nullableDirectionType": {
+      "anyOf": [{"enum": ["section", "placement"]}, {"type": "null"}]
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent_section_id",
+        "role",
+        "relative_length",
+        "description"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "parent_section_id": {"$ref": "#/$defs/nullableId"},
+        "role": {"$ref": "#/$defs/text"},
+        "relative_length": {"$ref": "#/$defs/nullableNumber"},
+        "description": {"$ref": "#/$defs/text"}
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "kind": {"$ref": "#/$defs/text"},
+        "description": {"$ref": "#/$defs/text"}
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "section_id", "material_id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "section_id": {"$ref": "#/$defs/id"},
+        "material_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "typedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["section", "material", "placement"]},
+        "id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "variation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "target", "preserve", "change", "description"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "source": {"$ref": "#/$defs/typedReference"},
+        "target": {"$ref": "#/$defs/typedReference"},
+        "preserve": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/text"}
+        },
+        "change": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/text"}
+        },
+        "description": {"$ref": "#/$defs/text"}
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "from_placement_id",
+        "connector_placement_id",
+        "to_placement_id",
+        "description"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "from_placement_id": {"$ref": "#/$defs/id"},
+        "connector_placement_id": {"$ref": "#/$defs/id"},
+        "to_placement_id": {"$ref": "#/$defs/id"},
+        "description": {"$ref": "#/$defs/text"}
+      }
+    },
+    "performanceDirection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target_type",
+        "target_id",
+        "relative_to_type",
+        "relative_to_id",
+        "description"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "target_type": {"enum": ["section", "placement"]},
+        "target_id": {"$ref": "#/$defs/id"},
+        "relative_to_type": {"$ref": "#/$defs/nullableDirectionType"},
+        "relative_to_id": {"$ref": "#/$defs/nullableId"},
+        "description": {"$ref": "#/$defs/text"}
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "performance_direction_id", "feature", "relation"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "performance_direction_id": {"$ref": "#/$defs/id"},
+        "feature": {"enum": ["onset_alignment", "loudness"]},
+        "relation": {"enum": ["more", "less"]}
+      }
+    }
+  }
+}

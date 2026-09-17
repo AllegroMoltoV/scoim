@@ -1,0 +1,51 @@
+[
+  {
+    "materials": [
+      {"description": "短い主題。"}
+    ],
+    "scenes": [
+      {
+        "sections": [
+          {
+            "depth": 0,
+            "role": "statement",
+            "structural_purpose": "regular",
+            "description": "主題を示す。",
+            "relative_length": 1,
+            "placements": [
+              {"material_index": 0, "role": "foreground"}
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "outcome": "complete",
+    "structure_insufficient_reason": null,
+    "variation_relations": [],
+    "material_placement_transitions": [],
+    "performance_directions": []
+  },
+  {
+    "tonal_center": 0,
+    "mode": "major",
+    "overall_harmonic_story": "主調を示して閉じる。",
+    "section_harmonic_intents": [
+      {
+        "harmonic_intent": "主調を示して閉じる。",
+        "connection_from_previous": "静かに始める。"
+      }
+    ]
+  },
+  {
+    "harmonies": [
+      {"duration_units": 12, "root_pitch_class": 0, "quality": "major"}
+    ]
+  },
+  {
+    "notes": [
+      {"at_units": 0, "duration_units": 12, "pitch": 72, "voice": "upper"}
+    ]
+  }
+]

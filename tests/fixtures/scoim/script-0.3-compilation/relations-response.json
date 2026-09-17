@@ -1,0 +1,37 @@
+{
+  "outcome": "complete",
+  "structure_insufficient_reason": null,
+  "variation_relations": [
+    {
+      "source": {"type": "material_placement", "id": "material-placement-001"},
+      "target": {"type": "material_placement", "id": "material-placement-006"},
+      "preserve": ["中心素材の輪郭", "親しみやすさ"],
+      "change": ["勢い", "響きの長さ"],
+      "description": "冒頭の素材を、陰りを通ったあとの穏やかな表情で戻す"
+    }
+  ],
+  "material_placement_transitions": [
+    {
+      "source_material_placement_id": "material-placement-003",
+      "transition_material_placement_id": "material-placement-005",
+      "target_material_placement_id": "material-placement-006",
+      "description": "広がった明るさを短い陰りへ移し、穏やかな再提示へつなぐ"
+    }
+  ],
+  "performance_directions": [
+    {
+      "target_type": "section",
+      "target_id": "section-004",
+      "relative_to_type": "section",
+      "relative_to_id": "section-001",
+      "description": "冒頭より落ち着かせ、音の縦の線をそろえて演奏する"
+    }
+  ],
+  "performance_comparison_requirements": [
+    {
+      "performance_direction_index": 0,
+      "feature": "onset_alignment",
+      "relation": "more"
+    }
+  ]
+}

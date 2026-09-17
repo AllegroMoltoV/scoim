@@ -1,0 +1,86 @@
+{
+  "phase3": {
+    "plan_choice": {"tonal_center": 0, "mode": "major"},
+    "divisions": 12,
+    "length_units_by_score_unit": {
+      "score-unit-statement": 48,
+      "score-unit-bridge": 12,
+      "score-unit-return": 48,
+      "score-unit-release": 12
+    },
+    "harmonies_by_score_unit": {
+      "score-unit-statement": [
+        {"harmony_id": "h-statement", "at_units": 0, "duration_units": 48, "root_pitch_class": 0, "quality": "major"}
+      ],
+      "score-unit-bridge": [
+        {"harmony_id": "h-bridge", "at_units": 0, "duration_units": 12, "root_pitch_class": 7, "quality": "major"}
+      ],
+      "score-unit-return": [
+        {"harmony_id": "h-return", "at_units": 0, "duration_units": 48, "root_pitch_class": 0, "quality": "major"}
+      ],
+      "score-unit-release": [
+        {"harmony_id": "h-release", "at_units": 0, "duration_units": 12, "root_pitch_class": 0, "quality": "major"}
+      ]
+    }
+  },
+  "phase4": {
+    "notes_by_material_placement": {
+      "theme-first": [
+        {"score_note_id": "n-theme-1", "at_units": 0, "duration_units": 12, "pitch": 72, "voice": "upper"},
+        {"score_note_id": "n-theme-2", "at_units": 12, "duration_units": 12, "pitch": 74, "voice": "upper"}
+      ],
+      "bridge-only": [
+        {"score_note_id": "n-bridge", "at_units": 0, "duration_units": 12, "pitch": 71, "voice": "upper"}
+      ],
+      "theme-return": [
+        {"score_note_id": "n-return-1", "at_units": 0, "duration_units": 8, "pitch": 72, "voice": "upper"},
+        {"score_note_id": "n-return-2", "at_units": 8, "duration_units": 8, "pitch": 76, "voice": "upper"},
+        {"score_note_id": "n-return-3", "at_units": 16, "duration_units": 16, "pitch": 74, "voice": "upper"}
+      ]
+    }
+  },
+  "phase5": {
+    "notes_by_material_placement": {
+      "support-first": [
+        {"score_note_id": "n-support-1", "at_units": 0, "duration_units": 24, "pitch": 48, "voice": "lower"},
+        {"score_note_id": "n-support-2", "at_units": 24, "duration_units": 24, "pitch": 55, "voice": "lower"}
+      ],
+      "support-return": [
+        {"score_note_id": "n-support-r1", "at_units": 0, "duration_units": 16, "pitch": 48, "voice": "lower"},
+        {"score_note_id": "n-support-r2", "at_units": 16, "duration_units": 16, "pitch": 55, "voice": "lower"},
+        {"score_note_id": "n-support-r3", "at_units": 32, "duration_units": 16, "pitch": 60, "voice": "lower"}
+      ]
+    }
+  },
+  "phase6": {
+    "ending_notes_by_material_placement": {
+      "ending-only": [
+        {"score_note_id": "n-ending-upper", "at_units": 0, "duration_units": 12, "pitch": 72, "voice": "upper"},
+        {"score_note_id": "n-ending-lower", "at_units": 0, "duration_units": 12, "pitch": 48, "voice": "lower"}
+      ]
+    },
+    "directions_by_score_unit": {
+      "score-unit-statement": [],
+      "score-unit-bridge": [],
+      "score-unit-return": [],
+      "score-unit-release": []
+    }
+  },
+  "phase7": {
+    "performance_id": "basic-performance",
+    "target_duration_ms": 180000,
+    "default_velocity": 64,
+    "timing_budget_id": "subtle-v1",
+    "section_performances": [
+      {
+        "section_id": "whole",
+        "timing_profile": "neutral",
+        "timing_amount": "subtle",
+        "dynamics_profile": "steady",
+        "articulation_profile": "score",
+        "coordination_profile": "score",
+        "pedal_profile": "harmony_legato"
+      }
+    ]
+  }
+}

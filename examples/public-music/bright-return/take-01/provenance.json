@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "take_id": "take-01",
+  "title": "陽だまりから静かな夕暮れへ",
+  "target_profile": "solo_piano_3m_v2",
+  "generation_commit": "de4692aa86abeddbc829a919fcdd4aee4c6a5e03",
+  "approved_flow": {
+    "file_sha256": "a6217fbf154fc1e44f82e607eb0128daa6b541456de98c3d3f6ad5d3986b14e6",
+    "content_sha256": "1eaa89d1be5a2a2ce2d0028ffaccc21ef7cbbb7530b9d5ea4721bf6ce7219270"
+  },
+  "composition_bundle": {
+    "schema_version": 3,
+    "composition_id": "transition-boundary-bright-01",
+    "manifest_sha256": "8f81bca521bed0ad0ee464ab7029e531133cb5415a7ee5900219f13d477bd088"
+  },
+  "generation_trial_bundle": {
+    "schema_version": 2,
+    "trial_id": "transition-boundary-bright-run-01",
+    "outcome": "complete",
+    "issues": []
+  },
+  "artifacts": {
+    "final.mid": {
+      "sha256": "3453d357fdb262556a8cfc843d8ee140fcee6602723d353f95b8b5a5386ea29d"
+    },
+    "score.musicxml": {
+      "sha256": "b52eed63dee43632caa0b2ac1a1995c398564a60bdef311083594e7d689c4502"
+    }
+  },
+  "human_evaluation": {
+    "date": "2026-09-17",
+    "scale": "1-5",
+    "three_minute_piece": 3,
+    "suitable_as_initial_public_example": 3,
+    "concern": "後半はかなりだらだらと間延びする印象があり、終止にも違和感がある。",
+    "strength": "序盤の華やかな部分がよくできており、その後に静かになっていく変化も作れている。"
+  },
+  "verification": {
+    "composition_bundle_valid": true,
+    "generation_trial_bundle_valid": true,
+    "offline_replay_matches_artifacts": true
+  }
+}

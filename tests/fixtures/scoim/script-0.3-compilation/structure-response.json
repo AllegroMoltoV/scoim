@@ -1,0 +1,13 @@
+{
+  "materials": [
+    {"description": "冒頭から終盤まで形を変えながら戻る、親しみやすい中心素材"},
+    {"description": "中心素材を支え、場面ごとに響きを変える伴奏素材"}
+  ],
+  "scenes": [
+    {"sections": [{"depth": 0, "role": "opening", "description": "中心素材を軽やかに示す", "relative_length": 2, "placements": [{"material_index": 0, "role": "foreground"}, {"material_index": 1, "role": "accompaniment"}]}]},
+    {"sections": [{"depth": 0, "role": "expansion", "description": "中心素材の動きと広がりを増やす", "relative_length": 2, "placements": [{"material_index": 0, "role": "foreground"}, {"material_index": 1, "role": "accompaniment"}]}]},
+    {"sections": [{"depth": 0, "role": "contrast", "description": "中心素材を短い陰りへ変え、前後をつなぐ", "relative_length": 1, "placements": [{"material_index": 0, "role": "foreground"}]}]},
+    {"sections": [{"depth": 0, "role": "return", "description": "中心素材を穏やかに戻す", "relative_length": 2, "placements": [{"material_index": 0, "role": "foreground"}, {"material_index": 1, "role": "accompaniment"}]}]},
+    {"sections": [{"depth": 0, "role": "ending", "description": "中心素材を簡素にして余韻を残す", "relative_length": 3, "placements": [{"material_index": 0, "role": "foreground"}, {"material_index": 1, "role": "accompaniment"}]}]}
+  ]
+}

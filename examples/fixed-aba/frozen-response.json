@@ -1,0 +1,428 @@
+{
+  "performance_spec": {
+    "format": "pipeline-dsl-v1",
+    "source": "performance_spec(performance_id='fixed-aba-performance', target_duration_ms=180000, default_velocity=64, timing_budget_id='narrative-v2', node_performances=[node_performance(node_id='statement', timing_profile='savor', timing_amount='subtle', dynamics_profile='shape', articulation_profile='legato', coordination_profile='rolled', pedal_profile='harmony_legato'), node_performance(node_id='bridge', timing_profile='neutral', timing_amount='subtle', dynamics_profile='steady', articulation_profile='score', coordination_profile='aligned', pedal_profile='harmony_legato'), node_performance(node_id='contrast', timing_profile='build', timing_amount='subtle', dynamics_profile='build', articulation_profile='score', coordination_profile='score', pedal_profile='harmony_legato'), node_performance(node_id='return', timing_profile='flow', timing_amount='subtle', dynamics_profile='steady', articulation_profile='legato', coordination_profile='aligned', pedal_profile='harmony_legato'), node_performance(node_id='release', timing_profile='release', timing_amount='subtle', dynamics_profile='release', articulation_profile='legato', coordination_profile='aligned', pedal_profile='harmony_legato')])"
+  },
+  "plan_choice": {
+    "contrasts_with_by_section": {
+      "contrast": "statement"
+    },
+    "harmonic_focus_by_section": {
+      "bridge": 9,
+      "contrast": 4,
+      "release": 9,
+      "return": 9,
+      "statement": 9
+    },
+    "mode": "minor",
+    "tonal_center": 9
+  },
+  "profile": "solo_piano_3m_v1",
+  "schema_version": 1,
+  "score_spec": {
+    "format": "pipeline-dsl-v1",
+    "source": "score_spec(score_id='fixed-aba-score', divisions=4, materials=[score_material(material_id='theme', length_units=8, notes=[score_note(event_id='t-l0', at_units=0, duration_units=4, pitch=45, voice='lower'), score_note(event_id='t-l1', at_units=0, duration_units=4, pitch=52, voice='lower'), score_note(event_id='t-u0', at_units=0, duration_units=4, pitch=69, voice='upper'), score_note(event_id='t-u1', at_units=4, duration_units=4, pitch=69, voice='upper', articulations=['tenuto']), score_note(event_id='t-l2', at_units=4, duration_units=4, pitch=52, voice='lower', articulations=['tenuto'])], harmonies=[score_harmony(harmony_id='theme-a', at_units=0, duration_units=8, root_pitch_class=9, quality='minor')], foreground_voice='upper'), score_material(material_id='connector', length_units=2, notes=[score_note(event_id='b-l0', at_units=0, duration_units=2, pitch=45, voice='lower'), score_note(event_id='b-l1', at_units=0, duration_units=2, pitch=52, voice='lower'), score_note(event_id='b-u0', at_units=0, duration_units=2, pitch=69, voice='upper')], harmonies=[score_harmony(harmony_id='bridge-a', at_units=0, duration_units=2, root_pitch_class=9, quality='minor')], foreground_voice='upper'), score_material(material_id='contrast', length_units=8, notes=[score_note(event_id='c-l0', at_units=0, duration_units=4, pitch=40, voice='lower'), score_note(event_id='c-l1', at_units=0, duration_units=4, pitch=47, voice='lower'), score_note(event_id='c-u0', at_units=0, duration_units=2, pitch=64, voice='upper'), score_note(event_id='c-u1', at_units=2, duration_units=2, pitch=68, voice='upper'), score_note(event_id='c-u2', at_units=4, duration_units=4, pitch=71, voice='upper')], harmonies=[score_harmony(harmony_id='contrast-e', at_units=0, duration_units=8, root_pitch_class=4, quality='major')], foreground_voice='upper'), score_material(material_id='cadence', length_units=4, notes=[score_note(event_id='e-l0', at_units=0, duration_units=4, pitch=45, voice='lower', articulations=['tenuto']), score_note(event_id='e-l1', at_units=0, duration_units=4, pitch=52, voice='lower', articulations=['tenuto']), score_note(event_id='e-u0', at_units=0, duration_units=4, pitch=69, voice='upper', articulations=['tenuto'])], harmonies=[score_harmony(harmony_id='ending-a', at_units=0, duration_units=4, root_pitch_class=9, quality='minor')], foreground_voice='upper')])"
+  },
+  "target_assertions": {
+    "/script/brief": {
+      "interpretation": "/script/brief\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1brief/performance_spec/duration_ms",
+            "value": 180000
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1brief/piece_plan/has_recurrence",
+            "value": true
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1brief/score_spec/has_upper_and_lower",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/materials/cadence/description": {
+      "interpretation": "/script/materials/cadence/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1cadence~1description/score_spec/material/material_id",
+            "value": "cadence"
+          }
+        ]
+      }
+    },
+    "/script/materials/cadence/kind": {
+      "interpretation": "/script/materials/cadence/kind\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1cadence~1kind/score_spec/material/material_id",
+            "value": "cadence"
+          }
+        ]
+      }
+    },
+    "/script/materials/connector/description": {
+      "interpretation": "/script/materials/connector/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1connector~1description/score_spec/material/material_id",
+            "value": "connector"
+          }
+        ]
+      }
+    },
+    "/script/materials/connector/kind": {
+      "interpretation": "/script/materials/connector/kind\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1connector~1kind/score_spec/material/material_id",
+            "value": "connector"
+          }
+        ]
+      }
+    },
+    "/script/materials/contrast/description": {
+      "interpretation": "/script/materials/contrast/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1contrast~1description/score_spec/material/material_id",
+            "value": "contrast"
+          }
+        ]
+      }
+    },
+    "/script/materials/contrast/kind": {
+      "interpretation": "/script/materials/contrast/kind\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1contrast~1kind/score_spec/material/material_id",
+            "value": "contrast"
+          }
+        ]
+      }
+    },
+    "/script/materials/theme/description": {
+      "interpretation": "/script/materials/theme/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1theme~1description/score_spec/material/material_id",
+            "value": "theme"
+          }
+        ]
+      }
+    },
+    "/script/materials/theme/kind": {
+      "interpretation": "/script/materials/theme/kind\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1materials~1theme~1kind/score_spec/material/material_id",
+            "value": "theme"
+          }
+        ]
+      }
+    },
+    "/script/performance_setup/performance_directions/clear_return/description": {
+      "interpretation": "/script/performance_setup/performance_directions/clear_return/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1performance_setup~1performance_directions~1clear_return~1description/performance_spec/different_profile_count",
+            "value": 3
+          }
+        ]
+      }
+    },
+    "/script/performance_setup/performance_directions/quiet_opening/description": {
+      "interpretation": "/script/performance_setup/performance_directions/quiet_opening/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1performance_setup~1performance_directions~1quiet_opening~1description/performance_spec/effective_profiles/timing_profile",
+            "value": "savor"
+          }
+        ]
+      }
+    },
+    "/script/sections/bridge/description": {
+      "interpretation": "/script/sections/bridge/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1bridge~1description/performance_spec/entity_present",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1bridge~1description/piece_plan/node/node_id",
+            "value": "bridge"
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1bridge~1description/score_spec/entity_present",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/sections/contrast/description": {
+      "interpretation": "/script/sections/contrast/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1contrast~1description/performance_spec/entity_present",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1contrast~1description/piece_plan/node/node_id",
+            "value": "contrast"
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1contrast~1description/score_spec/entity_present",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/sections/release/description": {
+      "interpretation": "/script/sections/release/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1release~1description/performance_spec/entity_present",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1release~1description/piece_plan/node/node_id",
+            "value": "release"
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1release~1description/score_spec/entity_present",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/sections/return/description": {
+      "interpretation": "/script/sections/return/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1return~1description/performance_spec/entity_present",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1return~1description/piece_plan/node/node_id",
+            "value": "return"
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1return~1description/score_spec/entity_present",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/sections/statement/description": {
+      "interpretation": "/script/sections/statement/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1statement~1description/performance_spec/entity_present",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1statement~1description/piece_plan/node/node_id",
+            "value": "statement"
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1statement~1description/score_spec/entity_present",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/sections/whole/description": {
+      "interpretation": "/script/sections/whole/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1whole~1description/performance_spec/entity_present",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1whole~1description/piece_plan/node/node_id",
+            "value": "whole"
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1sections~1whole~1description/score_spec/entity_present",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/transitions/statement_to_contrast/description": {
+      "interpretation": "/script/transitions/statement_to_contrast/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1transitions~1statement_to_contrast~1description/piece_plan/adjacent_in_order",
+            "value": true
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1transitions~1statement_to_contrast~1description/score_spec/adjacent_in_order",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/variations/return_variation/change": {
+      "interpretation": "/script/variations/return_variation/change\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1change/performance_spec/performance_difference",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1change/piece_plan/derived_from_matches",
+            "value": true
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1change/score_spec/same_score_material",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/variations/return_variation/description": {
+      "interpretation": "/script/variations/return_variation/description\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1description/performance_spec/performance_difference",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1description/piece_plan/derived_from_matches",
+            "value": true
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1description/score_spec/same_score_material",
+            "value": true
+          }
+        ]
+      }
+    },
+    "/script/variations/return_variation/preserve": {
+      "interpretation": "/script/variations/return_variation/preserve\u306e\u610f\u56f3\u304c\u5404\u751f\u6210\u6bb5\u968e\u306e\u4e8b\u5b9f\u306b\u53cd\u6620\u3055\u308c\u308b\u3002",
+      "tests": {
+        "performance_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1preserve/performance_spec/performance_difference",
+            "value": true
+          }
+        ],
+        "piece_plan": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1preserve/piece_plan/derived_from_matches",
+            "value": true
+          }
+        ],
+        "score_spec": [
+          {
+            "op": "test",
+            "path": "/target_evidence/~1script~1variations~1return_variation~1preserve/score_spec/same_score_material",
+            "value": true
+          }
+        ]
+      }
+    }
+  }
+}
+

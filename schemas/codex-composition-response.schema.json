@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "composition_source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "intent_summary": {
+      "type": "string",
+      "maxLength": 300
+    }
+  },
+  "required": [
+    "composition_source",
+    "intent_summary"
+  ]
+}
