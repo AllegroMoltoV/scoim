@@ -263,9 +263,16 @@ LLMが選んだ伴奏音の条件に対し、Pythonが具体的な音高を割�
 - 内部名: `velocity_policy_id`
 - 関連: [`PerformanceSpec`](#performancespec)、[マテリアル配置](#マテリアル配置)、[前景](#前景)
 
+### 打鍵グループ
+
+楽譜上で開始位置と音高が同じため、一台のピアノでは一回の打鍵として演奏する楽譜音符のまとまり。複数の声部や楽譜生成単位レイヤーにまたがる場合もある。演奏データでは一つの打鍵へ変換し、元の楽譜音符をすべて出所として残す。
+
+- 英名: `Key Strike Group`
+- 関連: [楽譜生成単位レイヤー](#楽譜生成単位レイヤー)、[`ScoreSpec`](#scorespec)、[`RenderedPerformance`](#renderedperformance)
+
 ### `RenderedPerformance`
 
-`PiecePlan`、`ScoreSpec`、`PerformanceSpec`を使って確定した、各音とペダルの絶対時刻を表す演奏データ。各演奏音符から元の楽譜音符と楽譜生成単位レイヤーをたどれる。SMFを書き出す直前の正本とする。
+`PiecePlan`、`ScoreSpec`、`PerformanceSpec`を使って確定した、一台のピアノで実際に行う打鍵とペダルの絶対時刻を表す演奏データ。楽譜上の複数の音符が同じ鍵を同時に使う場合は一回の打鍵として持ち、その打鍵から元のすべての楽譜音符と楽譜生成単位レイヤーをたどれる。SMFを書き出す直前の正本とする。
 
 - 内部名: `RenderedPerformance`
 - 関連: [楽譜生成単位レイヤー](#楽譜生成単位レイヤー)、[`PiecePlan`](#pieceplan)、[`ScoreSpec`](#scorespec)、[`PerformanceSpec`](#performancespec)、[SMF](#smf)

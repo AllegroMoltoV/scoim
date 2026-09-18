@@ -5,6 +5,7 @@ import pytest
 from scoim.performance_ir import (
     PerformanceIrValidationError,
     PerformanceSpec,
+    PerformedNote,
     SectionPerformance,
     validate_rendered_performance,
 )
@@ -20,6 +21,7 @@ from scoim.score_ir import (
 from scoim.score_rendering import (
     ScoreRenderingError,
     _legacy_score_boundary,
+    _merge_simultaneous_key_strikes,
     check_rendered_performance_smf,
     check_score_musicxml,
     render_score_performance,
@@ -161,22 +163,132 @@ def _placement_variation_inputs() -> tuple[
     return script, plan, replace(score, score_units=(*score.score_units, return_unit)), performance
 
 
+def _with_same_key_unison(score: ScoreSpec) -> ScoreSpec:
+    unit = score.score_units[0]
+    support_layer = unit.score_unit_layers[1]
+    return replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                score_unit_layers=(
+                    unit.score_unit_layers[0],
+                    replace(
+                        support_layer,
+                        notes=(replace(support_layer.notes[0], pitch=72),),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 def test_render_score_performance_preserves_every_score_note_source() -> None:
     plan, score, performance = _score_inputs()
 
     rendered = render_score_performance(_script(), plan, score, performance)
     validate_rendered_performance(plan, score, performance, rendered)
 
-    assert {note.source_score_note_id for note in rendered.notes} == {
+    assert {source_id for note in rendered.notes for source_id in note.source_score_note_ids} == {
         "note-upper",
         "note-lower",
         "note-support",
     }
     assert len({note.performed_note_id for note in rendered.notes}) == 3
+    assert all(not hasattr(note, "voice") for note in rendered.notes)
     assert rendered.duration_ms == 180_000
     assert len(rendered.piece_plan_sha256) == 64
     assert len(rendered.score_spec_sha256) == 64
     assert len(rendered.performance_spec_sha256) == 64
+
+
+def test_rendering_merges_score_simultaneous_same_key_notes_into_one_strike() -> None:
+    plan, score, performance = _score_inputs()
+    score = _with_same_key_unison(score)
+
+    rendered = render_score_performance(_script(), plan, score, performance)
+
+    merged = [
+        note
+        for note in rendered.notes
+        if set(note.source_score_note_ids) == {"note-upper", "note-support"}
+    ]
+    assert len(merged) == 1
+    assert merged[0].duration_ms == 162_000
+    assert len(rendered.notes) == 2
+
+
+def test_rendering_rolls_same_key_unison_as_one_strike() -> None:
+    plan, score, performance = _score_inputs()
+    score = _with_same_key_unison(score)
+    root_performance = replace(
+        performance.section_performances[0],
+        coordination_profile="rolled",
+    )
+
+    rendered = render_score_performance(
+        _script(),
+        plan,
+        score,
+        replace(performance, section_performances=(root_performance,)),
+    )
+
+    merged = [
+        note
+        for note in rendered.notes
+        if set(note.source_score_note_ids) == {"note-upper", "note-support"}
+    ]
+    assert len(merged) == 1
+    assert len(rendered.notes) == 2
+
+
+def test_rendering_rejects_two_velocities_for_one_simultaneous_key() -> None:
+    notes = (
+        PerformedNote("strike-a", ("score-a",), 100, 500, 60, 64),
+        PerformedNote("strike-b", ("score-b",), 100, 700, 60, 72),
+    )
+
+    with pytest.raises(ScoreRenderingError) as raised:
+        _merge_simultaneous_key_strikes(notes)
+
+    assert raised.value.issue.code is IssueCode.UNREPRESENTABLE
+
+
+def test_rendering_ends_a_key_before_the_next_strike() -> None:
+    plan, score, performance = _score_inputs()
+    unit = score.score_units[0]
+    support_layer = unit.score_unit_layers[1]
+    score = replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                score_unit_layers=(
+                    unit.score_unit_layers[0],
+                    replace(
+                        support_layer,
+                        notes=(
+                            replace(
+                                support_layer.notes[0],
+                                at_units=12,
+                                duration_units=36,
+                                pitch=72,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    rendered = render_score_performance(_script(), plan, score, performance)
+
+    same_key = sorted(
+        (note for note in rendered.notes if note.pitch == 72),
+        key=lambda note: note.at_ms,
+    )
+    assert len(same_key) == 2
+    assert same_key[0].at_ms + same_key[0].duration_ms == same_key[1].at_ms
 
 
 def test_rendered_performance_rejects_a_duplicate_score_note_source() -> None:
@@ -184,14 +296,36 @@ def test_rendered_performance_rejects_a_duplicate_score_note_source() -> None:
     rendered = render_score_performance(_script(), plan, score, performance)
     duplicate_source = replace(
         rendered.notes[1],
-        source_score_note_id=rendered.notes[0].source_score_note_id,
+        source_score_note_ids=rendered.notes[0].source_score_note_ids,
     )
     invalid_rendered = replace(
         rendered,
         notes=(rendered.notes[0], duplicate_source, *rendered.notes[2:]),
     )
 
-    with pytest.raises(PerformanceIrValidationError, match="one to one"):
+    with pytest.raises(PerformanceIrValidationError, match="exactly once"):
+        validate_rendered_performance(plan, score, performance, invalid_rendered)
+
+
+def test_rendered_performance_rejects_overlapping_strikes_on_one_key() -> None:
+    plan, score, performance = _score_inputs()
+    rendered = render_score_performance(_script(), plan, score, performance)
+    upper = next(note for note in rendered.notes if note.source_score_note_ids == ("note-upper",))
+    support = next(
+        note for note in rendered.notes if note.source_score_note_ids == ("note-support",)
+    )
+    invalid_support = replace(
+        support,
+        at_ms=upper.at_ms + 100,
+        duration_ms=upper.duration_ms,
+        pitch=upper.pitch,
+    )
+    invalid_rendered = replace(
+        rendered,
+        notes=tuple(invalid_support if note is support else note for note in rendered.notes),
+    )
+
+    with pytest.raises(PerformanceIrValidationError, match="same piano key"):
         validate_rendered_performance(plan, score, performance, invalid_rendered)
 
 
@@ -251,7 +385,7 @@ def test_rendering_preserves_a_placement_variation_through_a_return_section() ->
 
     rendered = render_score_performance(script, plan, score, performance)
 
-    assert {note.source_score_note_id for note in rendered.notes} == {
+    assert {source_id for note in rendered.notes for source_id in note.source_score_note_ids} == {
         "note-upper",
         "note-lower",
         "note-support",
@@ -266,7 +400,7 @@ def test_rendering_does_not_apply_legacy_section_role_rules_to_v2_sections() -> 
 
     rendered = render_score_performance(script, plan, score, performance)
 
-    assert {note.source_score_note_id for note in rendered.notes} == {
+    assert {source_id for note in rendered.notes for source_id in note.source_score_note_ids} == {
         "note-upper",
         "note-lower",
         "note-support",

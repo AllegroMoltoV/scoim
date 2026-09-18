@@ -655,7 +655,12 @@ def _performance_lineage_source(performance: PerformanceSpec) -> str:
     return fields + ")"
 
 
-def _coordination_offsets(material: ScoreMaterial, profile: str) -> dict[str, int]:
+def _coordination_offsets(
+    material: ScoreMaterial,
+    profile: str,
+    *,
+    group_same_key_onsets: bool = False,
+) -> dict[str, int]:
     if profile != "rolled":
         return {note.event_id: 0 for note in material.notes}
     by_onset: dict[int, list[ScoreNote]] = defaultdict(list)
@@ -663,6 +668,23 @@ def _coordination_offsets(material: ScoreMaterial, profile: str) -> dict[str, in
         by_onset[note.at_units].append(note)
     offsets: dict[str, int] = {}
     for notes in by_onset.values():
+        if group_same_key_onsets:
+            groups_by_pitch: dict[int, list[ScoreNote]] = defaultdict(list)
+            for note in notes:
+                groups_by_pitch[note.pitch].append(note)
+            ordered_groups = sorted(
+                groups_by_pitch.values(),
+                key=lambda group: (
+                    all(note.voice == "upper" for note in group),
+                    group[0].pitch,
+                ),
+            )
+            divisor = max(1, len(ordered_groups) - 1)
+            for index, group in enumerate(ordered_groups):
+                offset = round(45 * index / divisor)
+                for note in group:
+                    offsets[note.event_id] = offset
+            continue
         ordered = sorted(notes, key=lambda item: (item.voice == "upper", item.pitch))
         divisor = max(1, len(ordered) - 1)
         for index, note in enumerate(ordered):
@@ -704,7 +726,11 @@ def render_role_neutral_performance(
 
 
 def render_role_neutral_performance_with_pedal_sources(
-    plan: PiecePlan, score: ScoreSpec, performance: PerformanceSpec
+    plan: PiecePlan,
+    score: ScoreSpec,
+    performance: PerformanceSpec,
+    *,
+    group_same_key_onsets: bool = False,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     """Render without role inference and return each pedal event's originating leaf."""
     _validate_pipeline_stages(
@@ -713,7 +739,12 @@ def render_role_neutral_performance_with_pedal_sources(
         performance,
         require_harmony_foreground_voice=False,
     )
-    return _render_performance_unchecked_with_pedal_sources(plan, score, performance)
+    return _render_performance_unchecked_with_pedal_sources(
+        plan,
+        score,
+        performance,
+        group_same_key_onsets=group_same_key_onsets,
+    )
 
 
 def _render_performance_unchecked(
@@ -723,7 +754,11 @@ def _render_performance_unchecked(
 
 
 def _render_performance_unchecked_with_pedal_sources(
-    plan: PiecePlan, score: ScoreSpec, performance: PerformanceSpec
+    plan: PiecePlan,
+    score: ScoreSpec,
+    performance: PerformanceSpec,
+    *,
+    group_same_key_onsets: bool = False,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     leaves, intervals = ordered_leaf_schedule(plan, score)
     materials = {material.material_id: material for material in score.materials}
@@ -758,7 +793,11 @@ def _render_performance_unchecked_with_pedal_sources(
             "coordination_profile",
             "score",
         )
-        coordination_offsets = _coordination_offsets(material, coordination)
+        coordination_offsets = _coordination_offsets(
+            material,
+            coordination,
+            group_same_key_onsets=group_same_key_onsets,
+        )
         velocity_adjustments = material_velocity_adjustments(
             material, performance.velocity_policy_id
         )

@@ -1,6 +1,7 @@
 """Private one-way adapter from the v2 score boundary to proven low-level rendering."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -58,6 +59,8 @@ def render_score_performance(
     plan: PiecePlan,
     score: ScoreSpec,
     performance: PerformanceSpec,
+    *,
+    physical_key_contract: bool = True,
 ) -> RenderedPerformance:
     """Render v2 score data while preserving an explicit note-source correspondence."""
     capabilities = solo_piano_3m_v2_capabilities()
@@ -101,19 +104,24 @@ def render_score_performance(
         legacy_plan,
         legacy_score,
         legacy_performance,
+        group_same_key_onsets=physical_key_contract,
     )
     unit_id_by_section = {unit.source_section_id: unit.score_unit_id for unit in score.score_units}
-    notes = tuple(
+    note_candidates = tuple(
         PerformedNote(
             performed_note_id=item.event_id,
-            source_score_note_id=note_source_by_legacy_id[item.event_id],
+            source_score_note_ids=(note_source_by_legacy_id[item.event_id],),
             at_ms=item.at_ms,
             duration_ms=item.duration_ms,
             pitch=item.pitch,
             velocity=item.velocity,
-            voice=item.voice,
         )
         for item in legacy_rendered.notes
+    )
+    notes = (
+        _end_notes_before_restrike(_merge_simultaneous_key_strikes(note_candidates))
+        if physical_key_contract
+        else note_candidates
     )
     pedals = tuple(
         PerformedPedal(
@@ -138,8 +146,68 @@ def render_score_performance(
         score_spec_sha256=dataclass_content_sha256(score),
         performance_spec_sha256=dataclass_content_sha256(performance),
     )
-    validate_rendered_performance(plan, score, performance, rendered)
+    validate_rendered_performance(
+        plan,
+        score,
+        performance,
+        rendered,
+        enforce_physical_key_contract=physical_key_contract,
+    )
     return rendered
+
+
+def _merge_simultaneous_key_strikes(
+    notes: tuple[PerformedNote, ...],
+) -> tuple[PerformedNote, ...]:
+    grouped: dict[tuple[int, int], list[PerformedNote]] = {}
+    for note in notes:
+        grouped.setdefault((note.at_ms, note.pitch), []).append(note)
+    merged: list[PerformedNote] = []
+    for candidates in grouped.values():
+        velocities = {note.velocity for note in candidates}
+        if len(velocities) != 1:
+            raise ScoreRenderingError(
+                ValidationIssue(
+                    IssueCode.UNREPRESENTABLE,
+                    "Simultaneous uses of one piano key require one velocity",
+                    "/performance/notes",
+                )
+            )
+        first = min(candidates, key=lambda note: note.performed_note_id)
+        merged.append(
+            PerformedNote(
+                performed_note_id=first.performed_note_id,
+                source_score_note_ids=tuple(
+                    sorted(
+                        source_id for note in candidates for source_id in note.source_score_note_ids
+                    )
+                ),
+                at_ms=first.at_ms,
+                duration_ms=max(note.duration_ms for note in candidates),
+                pitch=first.pitch,
+                velocity=first.velocity,
+            )
+        )
+    return tuple(sorted(merged, key=lambda note: (note.at_ms, note.performed_note_id)))
+
+
+def _end_notes_before_restrike(
+    notes: tuple[PerformedNote, ...],
+) -> tuple[PerformedNote, ...]:
+    by_pitch: dict[int, list[PerformedNote]] = {}
+    for note in notes:
+        by_pitch.setdefault(note.pitch, []).append(note)
+    adjusted: list[PerformedNote] = []
+    for same_key in by_pitch.values():
+        ordered = sorted(same_key, key=lambda note: (note.at_ms, note.performed_note_id))
+        for index, note in enumerate(ordered):
+            if index + 1 == len(ordered):
+                adjusted.append(note)
+                continue
+            next_note = ordered[index + 1]
+            available_ms = next_note.at_ms - note.at_ms
+            adjusted.append(replace(note, duration_ms=min(note.duration_ms, available_ms)))
+    return tuple(sorted(adjusted, key=lambda note: (note.at_ms, note.performed_note_id)))
 
 
 def _legacy_score_boundary(
@@ -271,7 +339,7 @@ def _legacy_rendered_performance(
                 duration_ms=item.duration_ms,
                 pitch=item.pitch,
                 velocity=item.velocity,
-                voice=item.voice,
+                voice="upper",
             )
             for item in rendered.notes
         ),

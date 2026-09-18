@@ -99,7 +99,7 @@ def test_fixed_fixture_preserves_every_source_through_musicxml_and_smf(
         for unit in score.score_units
         for layer in unit.score_unit_layers
     } == set(script_body["material_placements"])
-    assert {note.source_score_note_id for note in rendered.notes} == {
+    assert {source_id for note in rendered.notes for source_id in note.source_score_note_ids} == {
         note.score_note_id
         for unit in score.score_units
         for layer in unit.score_unit_layers

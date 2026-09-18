@@ -2,6 +2,8 @@
 
 import hashlib
 from dataclasses import asdict, dataclass
+from itertools import pairwise
+from typing import cast
 
 import rfc8785
 
@@ -41,12 +43,11 @@ class PerformanceSpec:
 @dataclass(frozen=True, slots=True)
 class PerformedNote:
     performed_note_id: str
-    source_score_note_id: str
+    source_score_note_ids: tuple[str, ...]
     at_ms: int
     duration_ms: int
     pitch: int
     velocity: int
-    voice: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,22 +125,39 @@ def validate_rendered_performance(
     score: ScoreSpec,
     performance: PerformanceSpec,
     rendered: RenderedPerformance,
+    *,
+    enforce_physical_key_contract: bool = True,
 ) -> None:
-    """Validate lineage and complete one-to-one note projection after rendering."""
+    """Validate lineage and the physical-key projection after rendering."""
     expected_note_ids = {
         note.score_note_id
         for unit in score.score_units
         for layer in unit.score_unit_layers
         for note in layer.notes
     }
-    source_note_ids = [note.source_score_note_id for note in rendered.notes]
+    source_note_ids = [
+        source_id for note in rendered.notes for source_id in note.source_score_note_ids
+    ]
     performed_note_ids = [note.performed_note_id for note in rendered.notes]
     if (
-        set(source_note_ids) != expected_note_ids
+        any(not note.source_score_note_ids for note in rendered.notes)
+        or any(note.duration_ms <= 0 for note in rendered.notes)
+        or set(source_note_ids) != expected_note_ids
         or len(source_note_ids) != len(expected_note_ids)
         or len(performed_note_ids) != len(set(performed_note_ids))
     ):
-        raise PerformanceIrValidationError("rendered notes must map one to one to score notes")
+        raise PerformanceIrValidationError("rendered notes must cover score notes exactly once")
+    if enforce_physical_key_contract:
+        notes_by_pitch: dict[int, list[PerformedNote]] = {}
+        for note in rendered.notes:
+            notes_by_pitch.setdefault(note.pitch, []).append(note)
+        for same_key in notes_by_pitch.values():
+            ordered = sorted(same_key, key=lambda note: (note.at_ms, note.performed_note_id))
+            for previous, following in pairwise(ordered):
+                if previous.at_ms + previous.duration_ms > following.at_ms:
+                    raise PerformanceIrValidationError(
+                        "rendered notes on the same piano key must not overlap"
+                    )
     score_unit_ids = {unit.score_unit_id for unit in score.score_units}
     if any(pedal.source_score_unit_id not in score_unit_ids for pedal in rendered.pedals):
         raise PerformanceIrValidationError("rendered pedal refers to an unknown score unit")
@@ -164,3 +182,32 @@ def validate_rendered_performance(
 def dataclass_content_sha256(value: object) -> str:
     """Hash one immutable IR dataclass using canonical JSON."""
     return hashlib.sha256(rfc8785.dumps(asdict(value))).hexdigest()
+
+
+def rendered_performance_to_json(
+    rendered: RenderedPerformance,
+    score: ScoreSpec,
+    *,
+    schema_version: int,
+) -> dict[str, object]:
+    """Serialize a rendered performance using its recorded phase-7 contract."""
+    value = cast(dict[str, object], asdict(rendered))
+    if schema_version == 2:
+        return value
+    if schema_version != 1:
+        raise ValueError("the rendered-performance schema version is unsupported")
+    voice_by_note_id = {
+        note.score_note_id: note.voice
+        for unit in score.score_units
+        for layer in unit.score_unit_layers
+        for note in layer.notes
+    }
+    notes = cast(list[dict[str, object]], value["notes"])
+    for note in notes:
+        source_ids = cast(list[str] | tuple[str, ...], note.pop("source_score_note_ids"))
+        if len(source_ids) != 1:
+            raise ValueError("phase-7 schema version 1 requires one source per note")
+        source_id = source_ids[0]
+        note["source_score_note_id"] = source_id
+        note["voice"] = voice_by_note_id[source_id]
+    return value

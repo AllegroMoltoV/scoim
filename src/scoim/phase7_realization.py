@@ -71,7 +71,7 @@ def realize_phase7(
     store = RunStore(destination, max_calls=2 * len(operations))
     operation_order = [operation.operation_id for operation in operations]
     spec = {
-        "schema_version": 1,
+        "schema_version": 2,
         "operation": "phase7-performance-realization",
         "target_profile": request.target_profile,
         "input_script_sha256": sha256_json(document),

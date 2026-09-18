@@ -119,6 +119,12 @@ def create_phase8_bundle(
         loaded = load_complete_phase7_run(phase_dirs["phase7"])
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.SEMANTIC_INVALID, str(error), target)
+    if loaded.phase7_schema_version != 2:
+        return _bundle_failure(
+            IssueCode.LINEAGE_MISMATCH,
+            "a schema-version-3 bundle requires phase-7 schema version 2",
+            target,
+        )
 
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_root = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent)).resolve()
@@ -136,7 +142,7 @@ def create_phase8_bundle(
         atomic_write_json(inputs / "piece-plan.json", asdict(loaded.plan))
         atomic_write_json(inputs / "score-spec.json", asdict(loaded.score))
         atomic_write_json(inputs / "performance-spec.json", asdict(loaded.performance))
-        atomic_write_json(inputs / "rendered-performance.json", asdict(loaded.rendered))
+        atomic_write_json(inputs / "rendered-performance.json", loaded.rendered_json)
         atomic_write_json(
             inputs / "projection-ledger.json",
             [asdict(entry) for entry in loaded.cumulative_projection_ledger],
@@ -175,7 +181,7 @@ def create_phase8_bundle(
         }
         manifest = {
             "bundle_type": "scoim-generation-trial",
-            "schema_version": 2,
+            "schema_version": 3,
             "target_profile": "solo_piano_3m_v2",
             "composition_id": request.composition_id,
             "trial_id": request.trial_id,
@@ -184,7 +190,7 @@ def create_phase8_bundle(
             "piece_plan_sha256": sha256_json(asdict(loaded.plan)),
             "score_spec_sha256": sha256_json(asdict(loaded.score)),
             "performance_spec_sha256": sha256_json(asdict(loaded.performance)),
-            "rendered_performance_sha256": sha256_json(asdict(loaded.rendered)),
+            "rendered_performance_sha256": sha256_json(loaded.rendered_json),
             "files": file_hashes,
         }
         atomic_write_json(bundle / "manifest.json", manifest)
@@ -245,7 +251,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         schema_version = manifest.get("schema_version")
         if (
             manifest.get("bundle_type") != "scoim-generation-trial"
-            or schema_version not in {1, 2}
+            or schema_version not in {1, 2, 3}
             or manifest.get("target_profile") != "solo_piano_3m_v2"
         ):
             raise ValueError("bundle identity is invalid")
@@ -261,6 +267,8 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             if sha256_file(bundle / relative_path) != expected_hash:
                 raise ValueError(f"bundle file hash differs: {relative_path}")
         loaded = load_complete_phase7_run(bundle / "model-runs" / "phase7")
+        if schema_version == 3 and loaded.phase7_schema_version != 2:
+            raise ValueError("a schema-version-3 bundle requires phase-7 schema version 2")
         for phase_name in _PHASE_NAMES:
             operation_records = check_finite_model_operation_records(
                 bundle / "model-runs" / phase_name
@@ -275,11 +283,11 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             "piece_plan_sha256": sha256_json(asdict(loaded.plan)),
             "score_spec_sha256": sha256_json(asdict(loaded.score)),
             "performance_spec_sha256": sha256_json(asdict(loaded.performance)),
-            "rendered_performance_sha256": sha256_json(asdict(loaded.rendered)),
+            "rendered_performance_sha256": sha256_json(loaded.rendered_json),
         }
         if any(manifest.get(name) != digest for name, digest in expected_hashes.items()):
             raise ValueError("bundle lineage hash does not match")
-        if schema_version == 2:
+        if schema_version in {2, 3}:
             composition_id = manifest.get("composition_id")
             trial_id = manifest.get("trial_id")
             composition_manifest_bytes = (

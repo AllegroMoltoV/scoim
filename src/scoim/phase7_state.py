@@ -11,7 +11,11 @@ from typing import cast
 from llm_musical_composer.run_state import sha256_json, sha256_text
 
 from .finite_model_operation import check_finite_model_operation_records
-from .performance_ir import PerformanceSpec, RenderedPerformance
+from .performance_ir import (
+    PerformanceSpec,
+    RenderedPerformance,
+    rendered_performance_to_json,
+)
 from .phase7_performance_contracts import (
     build_performance_choice_operations,
     build_performance_choices,
@@ -35,7 +39,9 @@ class LoadedPhase7Run:
     score: ScoreSpec
     performance: PerformanceSpec
     rendered: RenderedPerformance
+    rendered_json: Mapping[str, object]
     cumulative_projection_ledger: tuple[ProjectionLedgerEntry, ...]
+    phase7_schema_version: int
 
 
 def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
@@ -47,6 +53,10 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
             f"saved model operation record is invalid: {operation_records.issues[0].message}"
         )
     state = _read_object(root / "outputs" / "phase7-state.json")
+    run_spec = _read_object(root / "run-spec.json")
+    schema_version = run_spec.get("schema_version")
+    if schema_version not in {1, 2}:
+        raise ValueError("the saved phase-7 schema version is unsupported")
     if state.get("outcome") != "complete":
         raise ValueError("phase 8 requires a complete phase-7 state")
     if state.get("target_profile") != "solo_piano_3m_v2":
@@ -123,9 +133,20 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     if sha256_json(saved_performance) != sha256_json(asdict(built.performance)):
         raise ValueError("saved phase-7 performance does not match reconstructed values")
 
-    rendered = render_score_performance(document, plan, score, built.performance)
+    rendered = render_score_performance(
+        document,
+        plan,
+        score,
+        built.performance,
+        physical_key_contract=schema_version == 2,
+    )
+    rendered_json = rendered_performance_to_json(
+        rendered,
+        score,
+        schema_version=cast(int, schema_version),
+    )
     saved_rendered = _read_object(root / "outputs" / "rendered-performance.json")
-    if sha256_json(saved_rendered) != sha256_json(asdict(rendered)):
+    if sha256_json(saved_rendered) != sha256_json(rendered_json):
         raise ValueError("saved phase-7 rendering does not match reconstructed values")
     cumulative_ledger = (*input_ledger, *built.projection_ledger)
     saved_ledger = tuple(
@@ -136,7 +157,7 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     validate_projection_ledger(saved_ledger)
     output_hashes = {
         "performance_spec_sha256": sha256_json(asdict(built.performance)),
-        "rendered_performance_sha256": sha256_json(asdict(rendered)),
+        "rendered_performance_sha256": sha256_json(rendered_json),
         "projection_ledger_sha256": sha256_json([asdict(entry) for entry in cumulative_ledger]),
     }
     if any(state.get(field) != digest for field, digest in output_hashes.items()):
@@ -147,7 +168,9 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
         score,
         built.performance,
         rendered,
+        rendered_json,
         cumulative_ledger,
+        cast(int, schema_version),
     )
 
 
