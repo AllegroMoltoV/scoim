@@ -57,6 +57,8 @@ Pythonは各呼び出しの前に、入力から一意に決まるID、参照、
 
 フェーズ7は、自然言語の演奏指示、各指示の演奏要素、検査済み`ScoreSpec`、生成プロファイルの演奏選択語彙を使う。LLMが選んだ方法をPythonが`SectionPerformance`へ対応付け、指定されていない演奏要素を変更していないことを検査する。すべての区分の値が確定した後に`PerformanceSpec`を一度だけ構築する。Pythonは楽譜上の同時同鍵を[打鍵グループ](glossary.md#打鍵グループ)へまとめ、`PerformanceSpec`から`RenderedPerformance`を作る。全楽譜音符がいずれか一つの演奏音符から重複も欠落もなく参照され、同じ鍵の実音区間が重ならないことを検査する。自然言語の達成は`unverified`とし、機械的に確認できないことだけを理由に失敗させない。
 
+同時同鍵の候補のvelocityが異なる場合、演奏変換は`unrepresentable`の理由を持つ例外で停止する。現在のフェーズ7は演奏変換の例外をまとめて扱うため、保存する結果は`render_invalid`、問題コードは`semantic_invalid`、対象pathは`/performance`となる。LLMの内容修正は行わず、後続フェーズへ進まない。
+
 フェーズ8は、`ScoreSpec`からMusicXMLを、`RenderedPerformance`からSMFを生成する。試行ID、構成ID、元の構成manifestのbytesとそのSHA-256を来歴として含める。再読込み、hash、来歴、必須ファイルを検査した後に生成試行bundleを確定する。フェーズ8は音符または演奏値を変更しない。
 
 ## 検査と内容修正

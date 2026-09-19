@@ -237,8 +237,8 @@ sequenceDiagram
         App->>Python: IDを対応付けてSectionPerformanceへ変換
         App->>State: 応答hash、検査結果、採用attempt、合格した値と未確認の創作目標を保存
     end
-    App->>Python: 楽譜上の同時同鍵を打鍵グループへまとめる
-    App->>Python: v2 PerformanceSpecを構築して打鍵とペダルへ変換
+    App->>Python: 検査済みSectionPerformanceからv2 PerformanceSpecを構築
+    App->>Python: 同時同鍵を打鍵グループへまとめて打鍵とペダルへ変換
     Python-->>App: PerformanceSpecとRenderedPerformance
     App->>Check: 値域、全楽譜音符の来歴、同一鍵非重複、決定性を検査
     break 検査不合格
