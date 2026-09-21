@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import json
+import secrets
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from functools import partial
 from pathlib import Path
 from typing import cast
 
-from llm_musical_composer.run_state import RunStore, atomic_write_json, sha256_json
+from llm_musical_composer.run_state import (
+    RunStore,
+    StateConflictError,
+    atomic_write_json,
+    sha256_json,
+)
 
 from .finite_model_operation import execute_finite_model_operation
 from .generation_script_validation import check_generation_script_document
@@ -79,9 +86,11 @@ def realize_phase3(
     ]
     max_calls = 2 * len(operation_order)
     store = RunStore(destination, max_calls=max_calls)
+    tonal_center = _load_or_select_tonal_center(destination)
     spec = {
-        "schema_version": 1,
+        "schema_version": 2,
         "operation": "phase3-realization",
+        "tonal_center": tonal_center,
         "target_profile": request.target_profile,
         "divisions": request.divisions,
         "units_per_duration_weight": request.units_per_duration_weight,
@@ -94,6 +103,7 @@ def realize_phase3(
     }
     store.initialize(spec)
     store.snapshot_json("inputs/validated-script.json", dict(request.validated_script))
+    store.snapshot_json("inputs/tonal-center.json", {"tonal_center": tonal_center})
     store.snapshot_json(
         "inputs/projection-ledger.json",
         [asdict(entry) for entry in request.projection_ledger],
@@ -117,6 +127,7 @@ def realize_phase3(
             build_harmonic_plan(
                 request.validated_script,
                 response,
+                tonal_center=tonal_center,
                 divisions=request.divisions,
                 units_per_duration_weight=request.units_per_duration_weight,
             )
@@ -128,9 +139,12 @@ def realize_phase3(
     overall_result = execute_finite_model_operation(
         store=store,
         operation_id="overall-plan",
-        prompt=overall_plan_prompt(request.validated_script),
+        prompt=overall_plan_prompt(request.validated_script, tonal_center=tonal_center),
         schema=overall_schema,
-        immutable_input=request.validated_script,
+        immutable_input={
+            "validated_script_sha256": spec["input_script_sha256"],
+            "tonal_center": tonal_center,
+        },
         runner=runner,
         validate_content=validate_overall,
     )
@@ -145,6 +159,7 @@ def realize_phase3(
     plan = build_harmonic_plan(
         request.validated_script,
         overall_result.response,
+        tonal_center=tonal_center,
         divisions=request.divisions,
         units_per_duration_weight=request.units_per_duration_weight,
     )
@@ -317,6 +332,30 @@ def _check_request(request: Phase3Request) -> tuple[ValidationIssue, ...]:
             ),
         )
     return ()
+
+
+def _load_or_select_tonal_center(destination: Path) -> int:
+    """Reuse a saved tonic, or select it once for a new phase-3 run."""
+    spec_path = destination / "run-spec.json"
+    if not spec_path.is_file():
+        return secrets.randbelow(12)
+    try:
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise StateConflictError(f"saved phase-3 run spec is unreadable: {spec_path}") from error
+    tonal_center = spec.get("tonal_center") if isinstance(spec, dict) else None
+    if (
+        not isinstance(spec, dict)
+        or spec.get("schema_version") != 2
+        or spec.get("operation") != "phase3-realization"
+        or not isinstance(tonal_center, int)
+        or isinstance(tonal_center, bool)
+        or not 0 <= tonal_center <= 11
+    ):
+        raise StateConflictError(
+            "saved phase-3 run uses an incompatible tonal-center selection contract"
+        )
+    return tonal_center
 
 
 def expected_phase2_projection_targets(

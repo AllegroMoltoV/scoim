@@ -14,7 +14,7 @@ sequenceDiagram
     participant CLI as scoim
     participant LLM
     participant Check as 機械検査
-    participant Python as 決定的処理
+    participant Python as Python処理
     participant Record as 実行記録
 
     User->>CLI: propose 短い依頼
@@ -103,7 +103,7 @@ sequenceDiagram
     participant App as scoim realize
     participant Profile as 生成プロファイル
     participant LLM
-    participant Python as 決定的処理
+    participant Python as Python処理
     participant Check as 機械検査
     participant State as 作成途中状態と実行記録
 
@@ -160,8 +160,18 @@ sequenceDiagram
     end
 
     Note over App,State: フェーズ3 PiecePlanと共有和声
+    alt 新しいフェーズ3run
+        App->>Python: 0から11の主音を等確率で一度だけ選ぶ
+        Python-->>App: 選択済み主音
+        App->>State: 主音をrun仕様へ保存
+    else 既存のフェーズ3run
+        App->>State: 保存済み主音を読み込む
+        break 主音を持たない旧形式の未完成run
+            App->>State: 入力契約の不一致として終了
+        end
+    end
     loop フェーズ3の事前登録オペレーション
-        App->>LLM: 全体設計または楽譜生成単位の共有和声
+        App->>LLM: 保存済み主音を固定した全体設計、または共有和声
         LLM-->>App: 候補
         App->>Check: 候補を検査
         opt 内容不合格かつ修正可能
@@ -275,7 +285,7 @@ Pythonは安定IDを付け、遷移専用区分の前後で最も近い通常区
 
 Pythonは各フェーズを始める前にオペレーションの対象と順序を固定する。通常は一つのオペレーションにつきLLMを1回呼び、内容不合格の場合に同じオペレーションを追加1回まで修正する。したがって、各フェーズの最大呼び出し数はオペレーション数の2倍である。
 
-- フェーズ3は、全体設計と楽譜生成単位ごとの共有和声を作る。
+- フェーズ3は、新規runの開始時にPythonが[主音](glossary.md#主音)を0から11までの整数から等確率で一度だけ選び、最初のモデル呼び出し前にrun仕様へ保存する。LLMは保存済み主音を変更せず、[長調・短調](glossary.md#長調短調)、全体の和声展開、楽譜生成単位ごとの共有和声を作る。同じrunの再開では保存済み主音を使う。
 - フェーズ4は、マテリアル配置ごとの前景と遷移前景を作る。
 - フェーズ5は、マテリアル配置ごとの伴奏と遷移伴奏を作る。LLMは各音の発音位置、希望音価、和音度数、希望音域、声部、奏法を選ぶ。Pythonは最初に全音を希望音域内だけで配置する。探索上限へ達する前に配置不能と確認できた場合だけ、和音度数と共有和声に一致するピアノ全域の音高を候補にし、希望音域内を先に評価して具体的なMIDI音高を配置する。和音度数、ピアノ音域、同一鍵重複、低域間隔は、どちらの探索でも変えない。
 

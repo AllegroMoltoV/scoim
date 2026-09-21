@@ -72,13 +72,11 @@ def overall_plan_response_schema(*, leaf_count: int) -> dict[str, object]:
         "type": "object",
         "additionalProperties": False,
         "required": [
-            "tonal_center",
             "mode",
             "overall_harmonic_story",
             "section_harmonic_intents",
         ],
         "properties": {
-            "tonal_center": {"type": "integer", "minimum": 0, "maximum": 11},
             "mode": {"type": "string", "enum": ["major", "minor"]},
             "overall_harmonic_story": {"type": "string", "minLength": 1},
             "section_harmonic_intents": {
@@ -91,8 +89,8 @@ def overall_plan_response_schema(*, leaf_count: int) -> dict[str, object]:
     }
 
 
-def overall_plan_prompt(document: Mapping[str, object]) -> str:
-    """Ask for positional tonal and harmonic intent without generated identifiers."""
+def overall_plan_prompt(document: Mapping[str, object], *, tonal_center: int) -> str:
+    """Ask for mode and harmonic intent around one preselected tonal center."""
     script = cast(dict[str, object], document["script"])
     sections = cast(dict[str, dict[str, object]], script["sections"])
     leaf_sections = [
@@ -107,6 +105,7 @@ def overall_plan_prompt(document: Mapping[str, object]) -> str:
     context = {
         "title": script["title"],
         "brief": script["brief"],
+        "tonal_center": tonal_center,
         "leaf_sections_in_performance_order": leaf_sections,
         "materials": script["materials"],
         "material_placements": script["material_placements"],
@@ -114,7 +113,8 @@ def overall_plan_prompt(document: Mapping[str, object]) -> str:
         "material_placement_transitions": script["material_placement_transitions"],
     }
     return (
-        "曲全体の調性と和声の流れを設計してください。区分IDは応答へ返さず、"
+        "入力で指定された主音を変えず、曲全体の長調・短調と和声の流れを設計してください。"
+        "主音は応答へ返さないでください。区分IDも応答へ返さず、"
         "section_harmonic_intentsを入力の子なし区分と同じ順、同じ件数で返してください。"
         "指定されたSchemaだけに従ってください。\n\n"
         f"入力: {json.dumps(context, ensure_ascii=False, sort_keys=False)}\n"
@@ -125,6 +125,7 @@ def build_harmonic_plan(
     document: Mapping[str, object],
     response: Mapping[str, object],
     *,
+    tonal_center: int,
     divisions: int,
     units_per_duration_weight: int,
 ) -> HarmonicPlan:
@@ -132,7 +133,7 @@ def build_harmonic_plan(
     piece_plan, ledger = build_piece_plan(
         document,
         PlanChoice(
-            tonal_center=cast(int, response["tonal_center"]),
+            tonal_center=tonal_center,
             mode=cast(str, response["mode"]),
         ),
     )

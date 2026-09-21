@@ -9,7 +9,7 @@
 - [用語集](glossary.md): 利用者向けと実装向けの主要用語
 - [決定状態](scoim-decision-status.md): 長期的に確定、初版では確定、仮置きの区別
 - [SCoIMシステム](scoim-system.md): 目的、利用者の流れ、責務の境界
-- [生成工程](scoim-generation-workflow.md): 人間、LLM、決定的処理のやり取りと失敗処理
+- [生成工程](scoim-generation-workflow.md): 人間、LLM、Python処理のやり取りと失敗処理
 
 ### 2. SCoIM中核
 

@@ -4,6 +4,7 @@ from typing import cast
 
 import pytest
 
+from llm_musical_composer.run_state import StateConflictError
 from scoim.phase3_realization import Phase3Request, realize_phase3
 from scoim.projection_ledger import ProjectionLedgerEntry
 from scoim.proposal import ProposalRun
@@ -91,7 +92,6 @@ def _phase2_ledger(document: dict[str, object]) -> tuple[ProjectionLedgerEntry, 
 def _responses() -> list[dict[str, object]]:
     return [
         {
-            "tonal_center": 0,
             "mode": "major",
             "overall_harmonic_story": "主調から少し離れて戻る。",
             "section_harmonic_intents": [
@@ -120,6 +120,11 @@ def _responses() -> list[dict[str, object]]:
     ]
 
 
+@pytest.fixture(autouse=True)
+def _fixed_tonal_center(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("scoim.phase3_realization.secrets.randbelow", lambda upper: 0)
+
+
 def test_phase3_realization_completes_all_registered_operations(tmp_path: Path) -> None:
     document = _document()
     runner = SequencedRunner(_responses())
@@ -142,6 +147,11 @@ def test_phase3_realization_completes_all_registered_operations(tmp_path: Path) 
         "score-unit-release",
     }
     spec = json.loads((run_dir / "run-spec.json").read_text("utf-8"))
+    assert spec["schema_version"] == 2
+    assert spec["tonal_center"] == 0
+    assert json.loads((run_dir / "inputs" / "tonal-center.json").read_text("utf-8")) == {
+        "tonal_center": 0
+    }
     assert spec["operation_order"] == [
         "overall-plan",
         "harmony-score-unit-statement",
@@ -253,6 +263,82 @@ def test_phase3_resumes_from_the_first_unaccepted_operation(tmp_path: Path) -> N
     assert completed.outcome == "complete"
     assert len(first_runner.prompts) == 2
     assert len(second_runner.prompts) == 3
+
+
+def test_phase3_resume_reuses_the_saved_tonal_center(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = _document()
+    run_dir = tmp_path / "run"
+    choices = iter((5, 8))
+    observed_bounds: list[int] = []
+
+    def select_tonal_center(upper: int) -> int:
+        observed_bounds.append(upper)
+        return next(choices)
+
+    monkeypatch.setattr("scoim.phase3_realization.secrets.randbelow", select_tonal_center)
+
+    paused = realize_phase3(
+        Phase3Request(document, _phase2_ledger(document)),
+        SequencedRunner(_responses()[:1]),
+        run_dir,
+        max_new_operations=1,
+    )
+    completed = realize_phase3(
+        Phase3Request(document, _phase2_ledger(document)),
+        SequencedRunner(
+            [
+                {
+                    "harmonies": [
+                        {"duration_units": 48, "root_pitch_class": 5, "quality": "major"}
+                    ]
+                },
+                {
+                    "harmonies": [
+                        {"duration_units": 12, "root_pitch_class": 0, "quality": "major"}
+                    ]
+                },
+                {
+                    "harmonies": [
+                        {"duration_units": 48, "root_pitch_class": 10, "quality": "major"}
+                    ]
+                },
+                {
+                    "harmonies": [
+                        {"duration_units": 12, "root_pitch_class": 5, "quality": "major"}
+                    ]
+                },
+            ]
+        ),
+        run_dir,
+    )
+
+    assert paused.outcome == "paused"
+    assert completed.outcome == "complete"
+    assert json.loads((run_dir / "run-spec.json").read_text("utf-8"))["tonal_center"] == 5
+    assert completed.state is not None
+    harmonic_plan = cast(dict[str, object], completed.state["harmonic_plan"])
+    piece_plan = cast(dict[str, object], harmonic_plan["piece_plan"])
+    assert piece_plan["tonal_center"] == 5
+    assert observed_bounds == [12]
+    assert next(choices) == 8
+
+
+def test_phase3_rejects_an_unfinished_legacy_run_before_model_use(tmp_path: Path) -> None:
+    document = _document()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "run-spec.json").write_text(
+        json.dumps({"schema_version": 1, "operation": "phase3-realization"}),
+        encoding="utf-8",
+    )
+    runner = SequencedRunner([])
+
+    with pytest.raises(StateConflictError, match="incompatible tonal-center"):
+        realize_phase3(Phase3Request(document, _phase2_ledger(document)), runner, run_dir)
+
+    assert runner.prompts == []
 
 
 @pytest.mark.parametrize(

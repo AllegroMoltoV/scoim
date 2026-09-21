@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from test_scoim_script_0_3_compilation import (
     SequencedRunner,
     _approved_flow,
@@ -20,6 +21,11 @@ from scoim.script_0_4_compilation import (
 from scoim.v2_composition_bundle import create_v2_composition_bundle
 from scoim.v2_public_run import PublicV2RunRequest, ensure_public_v2_run
 from scoim.validation import IssueCode
+
+
+@pytest.fixture(autouse=True)
+def _fixed_tonal_center(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("scoim.phase3_realization.secrets.randbelow", lambda upper: 0)
 
 
 class PublicV2Runner:
@@ -49,7 +55,6 @@ class PublicV2Runner:
 def _generation_responses() -> list[dict[str, object]]:
     return [
         {
-            "tonal_center": 0,
             "mode": "major",
             "overall_harmonic_story": "主調を示して閉じる。",
             "section_harmonic_intents": [

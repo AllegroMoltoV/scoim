@@ -29,7 +29,6 @@ def _document() -> dict[str, object]:
 
 def _overall_response() -> dict[str, object]:
     return {
-        "tonal_center": 0,
         "mode": "major",
         "overall_harmonic_story": "安定した響きから少し離れ、主調へ戻る。",
         "section_harmonic_intents": [
@@ -64,11 +63,19 @@ def test_overall_plan_schema_uses_position_and_does_not_accept_final_ids() -> No
     assert len(errors) == 1
     assert errors[0].validator == "additionalProperties"
 
+    valid = _overall_response()
+    valid["tonal_center"] = 0
+    errors = list(Draft202012Validator(schema).iter_errors(valid))
+
+    assert len(errors) == 1
+    assert errors[0].validator == "additionalProperties"
+
 
 def test_overall_plan_is_bound_to_leaf_sections_in_performance_order() -> None:
     result = build_harmonic_plan(
         _document(),
         _overall_response(),
+        tonal_center=0,
         divisions=12,
         units_per_duration_weight=12,
     )
@@ -99,12 +106,13 @@ def test_overall_plan_is_bound_to_leaf_sections_in_performance_order() -> None:
 
 
 def test_overall_plan_prompt_lists_every_leaf_section_in_performance_order() -> None:
-    prompt = overall_plan_prompt(_document())
+    prompt = overall_plan_prompt(_document(), tonal_center=9)
 
     positions = [prompt.index(name) for name in ("statement", "bridge", "return", "release")]
     assert positions == sorted(positions)
     assert "主題を提示する" in prompt
     assert "主音で終止する" in prompt
+    assert '"tonal_center": 9' in prompt
 
 
 def test_harmony_schema_omits_ids_and_python_assigns_stable_ids() -> None:
@@ -168,6 +176,7 @@ def test_harmony_prompt_contains_target_materials_variation_and_neighbor_context
     plan = build_harmonic_plan(
         document,
         _overall_response(),
+        tonal_center=0,
         divisions=12,
         units_per_duration_weight=12,
     )
