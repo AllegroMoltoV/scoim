@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 
 import mido
 
+from llm_musical_composer.performance_timing import TimingResolutionError
+
 from .score_ir import ScoreNote
+from .score_timing import LEGACY_TIMING, QUANTIZED_TIMING, check_timing_contract
 
 TICKS_PER_BEAT = 960
 TEMPO = 500_000
@@ -27,9 +31,10 @@ def write_neutral_score_preview(
     *,
     meta_track_name: str,
     note_track_name: str,
+    timing_contract: str = LEGACY_TIMING,
 ) -> Path:
     """Write score notes with neutral velocity and no performance expression."""
-    total_ticks, expected_events = _preview_geometry(segments, target_seconds)
+    total_ticks, expected_events = _preview_geometry(segments, target_seconds, timing_contract)
     events = [
         (
             tick,
@@ -64,9 +69,11 @@ def check_neutral_score_preview(
     segments: Sequence[NeutralPreviewSegment],
     target_seconds: float,
     preview_path: Path,
+    *,
+    timing_contract: str = LEGACY_TIMING,
 ) -> None:
     """Require a saved preview to contain exactly the deterministic neutral events."""
-    total_ticks, expected_events = _preview_geometry(segments, target_seconds)
+    total_ticks, expected_events = _preview_geometry(segments, target_seconds, timing_contract)
     midi = mido.MidiFile(preview_path)
     if midi.type != 1 or midi.ticks_per_beat != TICKS_PER_BEAT:
         raise ValueError("score preview MIDI header does not match the neutral format")
@@ -107,7 +114,9 @@ def check_neutral_score_preview(
 def _preview_geometry(
     segments: Sequence[NeutralPreviewSegment],
     target_seconds: float,
+    timing_contract: str = LEGACY_TIMING,
 ) -> tuple[int, tuple[tuple[int, int, str, int, int, int], ...]]:
+    check_timing_contract(timing_contract)
     total_units = sum(segment.length_units for segment in segments)
     if total_units <= 0:
         raise ValueError("a score preview requires positive total duration")
@@ -120,10 +129,25 @@ def _preview_geometry(
         if segment.length_units <= 0:
             raise ValueError("a score preview segment requires positive duration")
         for note in segment.notes:
-            start = round((segment_offset + note.at_units) * total_ticks / total_units)
-            end = round(
-                (segment_offset + note.at_units + note.duration_units) * total_ticks / total_units
-            )
+            if timing_contract == QUANTIZED_TIMING:
+                start = round(Fraction((segment_offset + note.at_units) * total_ticks, total_units))
+                end = round(
+                    Fraction(
+                        (segment_offset + note.at_units + note.duration_units) * total_ticks,
+                        total_units,
+                    )
+                )
+                if end <= start:
+                    raise TimingResolutionError(
+                        "a score note cannot be represented at preview tick precision"
+                    )
+            else:
+                start = round((segment_offset + note.at_units) * total_ticks / total_units)
+                end = round(
+                    (segment_offset + note.at_units + note.duration_units)
+                    * total_ticks
+                    / total_units
+                )
             channel = 0 if note.voice == "upper" else 1
             events.append((start, 1, "note_on", note.pitch, 64, channel))
             events.append((max(start + 1, end), 0, "note_off", note.pitch, 0, channel))

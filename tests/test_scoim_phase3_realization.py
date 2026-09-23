@@ -93,6 +93,7 @@ def _responses() -> list[dict[str, object]]:
     return [
         {
             "mode": "major",
+            "total_score_units": 120,
             "overall_harmonic_story": "主調から少し離れて戻る。",
             "section_harmonic_intents": [
                 {
@@ -147,7 +148,8 @@ def test_phase3_realization_completes_all_registered_operations(tmp_path: Path) 
         "score-unit-release",
     }
     spec = json.loads((run_dir / "run-spec.json").read_text("utf-8"))
-    assert spec["schema_version"] == 2
+    assert spec["schema_version"] == 3
+    assert spec["timing_contract"] == "quantized-score-v1"
     assert spec["tonal_center"] == 0
     assert json.loads((run_dir / "inputs" / "tonal-center.json").read_text("utf-8")) == {
         "tonal_center": 0
@@ -309,17 +311,23 @@ def test_phase3_resume_reuses_the_saved_tonal_center(
     assert next(choices) == 8
 
 
-def test_phase3_rejects_an_unfinished_legacy_run_before_model_use(tmp_path: Path) -> None:
+@pytest.mark.parametrize("schema_version", [1, 2])
+def test_phase3_rejects_an_unfinished_legacy_run_before_model_use(
+    tmp_path: Path,
+    schema_version: int,
+) -> None:
     document = _document()
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     (run_dir / "run-spec.json").write_text(
-        json.dumps({"schema_version": 1, "operation": "phase3-realization"}),
+        json.dumps(
+            {"schema_version": schema_version, "operation": "phase3-realization", "tonal_center": 0}
+        ),
         encoding="utf-8",
     )
     runner = SequencedRunner([])
 
-    with pytest.raises(StateConflictError, match="incompatible tonal-center"):
+    with pytest.raises(StateConflictError, match="incompatible timing or tonal-center"):
         realize_phase3(Phase3Request(document, _phase2_ledger(document)), runner, run_dir)
 
     assert runner.prompts == []

@@ -12,6 +12,7 @@ from pathlib import Path
 from llm_musical_composer.run_state import atomic_write_json
 
 from .runner_identity import RunnerIdentity
+from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
 
@@ -55,7 +56,8 @@ def ensure_public_v2_run(
         if saved != record:
             return _failure(
                 IssueCode.STORAGE_CONFLICT,
-                "The saved public v2 request conflicts with the current request",
+                "The saved public v2 request or timing contract conflicts with this request; "
+                "start a new trial from the saved composition in a new output directory",
                 marker,
             )
         return PublicV2RunResult(True, True, target, ())
@@ -86,7 +88,8 @@ def _request_record(request: PublicV2RunRequest) -> dict[str, object]:
     ):
         raise ValueError("public v2 identifiers must not be empty")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "timing_contract": QUANTIZED_TIMING,
         "operation": "scoim-public-v2-realization",
         "input_kind": request.input_kind,
         "input_sha256": request.input_sha256,

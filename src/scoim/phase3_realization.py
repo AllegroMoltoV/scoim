@@ -44,6 +44,7 @@ from .projection_ledger import (
 )
 from .proposal import ProposalRunner, preflight_runner
 from .score_ir import ScoreHarmony
+from .score_timing import MAX_SCORE_UNITS, QUANTIZED_TIMING, ScoreCapacityError
 from .validation import IssueCode, ValidationIssue
 
 
@@ -53,7 +54,6 @@ class Phase3Request:
     projection_ledger: tuple[ProjectionLedgerEntry, ...]
     target_profile: str = "solo_piano_3m_v2"
     divisions: int = 12
-    units_per_duration_weight: int = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,12 +88,12 @@ def realize_phase3(
     store = RunStore(destination, max_calls=max_calls)
     tonal_center = _load_or_select_tonal_center(destination)
     spec = {
-        "schema_version": 2,
+        "schema_version": 3,
         "operation": "phase3-realization",
         "tonal_center": tonal_center,
         "target_profile": request.target_profile,
         "divisions": request.divisions,
-        "units_per_duration_weight": request.units_per_duration_weight,
+        "timing_contract": QUANTIZED_TIMING,
         "input_script_sha256": sha256_json(request.validated_script),
         "input_projection_ledger_sha256": sha256_json(
             [asdict(entry) for entry in request.projection_ledger]
@@ -129,8 +129,9 @@ def realize_phase3(
                 response,
                 tonal_center=tonal_center,
                 divisions=request.divisions,
-                units_per_duration_weight=request.units_per_duration_weight,
             )
+        except ScoreCapacityError as error:
+            return (ValidationIssue(IssueCode.UNREPRESENTABLE, str(error), "/total_score_units"),)
         except (KeyError, TypeError, ValueError) as error:
             return (ValidationIssue(IssueCode.SEMANTIC_INVALID, str(error), "/overall-plan"),)
         return ()
@@ -139,11 +140,15 @@ def realize_phase3(
     overall_result = execute_finite_model_operation(
         store=store,
         operation_id="overall-plan",
-        prompt=overall_plan_prompt(request.validated_script, tonal_center=tonal_center),
+        prompt=overall_plan_prompt(
+            request.validated_script, tonal_center=tonal_center, divisions=request.divisions
+        ),
         schema=overall_schema,
         immutable_input={
             "validated_script_sha256": spec["input_script_sha256"],
             "tonal_center": tonal_center,
+            "divisions": request.divisions,
+            "timing_contract": QUANTIZED_TIMING,
         },
         runner=runner,
         validate_content=validate_overall,
@@ -152,7 +157,9 @@ def realize_phase3(
         return _publish_failure(
             store,
             destination,
-            overall_result.outcome,
+            "unrepresentable"
+            if any(issue.code == IssueCode.UNREPRESENTABLE for issue in overall_result.issues)
+            else overall_result.outcome,
             overall_result.issues,
             None,
         )
@@ -161,7 +168,6 @@ def realize_phase3(
         overall_result.response,
         tonal_center=tonal_center,
         divisions=request.divisions,
-        units_per_duration_weight=request.units_per_duration_weight,
     )
     store.snapshot_json("outputs/harmonic-plan.json", _harmonic_plan_json(plan))
     store.snapshot_json("outputs/piece-plan.json", asdict(plan.piece_plan))
@@ -306,7 +312,11 @@ def _check_request(request: Phase3Request) -> tuple[ValidationIssue, ...]:
                 "/target_profile",
             ),
         )
-    if request.divisions <= 0 or request.units_per_duration_weight <= 0:
+    if (
+        isinstance(request.divisions, bool)
+        or not isinstance(request.divisions, int)
+        or not 1 <= request.divisions <= MAX_SCORE_UNITS
+    ):
         return (
             ValidationIssue(
                 IssueCode.SEMANTIC_INVALID,
@@ -346,14 +356,16 @@ def _load_or_select_tonal_center(destination: Path) -> int:
     tonal_center = spec.get("tonal_center") if isinstance(spec, dict) else None
     if (
         not isinstance(spec, dict)
-        or spec.get("schema_version") != 2
+        or spec.get("schema_version") != 3
+        or spec.get("timing_contract") != QUANTIZED_TIMING
         or spec.get("operation") != "phase3-realization"
         or not isinstance(tonal_center, int)
         or isinstance(tonal_center, bool)
         or not 0 <= tonal_center <= 11
     ):
         raise StateConflictError(
-            "saved phase-3 run uses an incompatible tonal-center selection contract"
+            "saved phase-3 run uses an incompatible timing or tonal-center contract; "
+            "start a new trial from the saved composition"
         )
     return tonal_center
 
@@ -391,6 +403,8 @@ def _harmonic_plan_json(plan: HarmonicPlan) -> dict[str, object]:
         "overall_harmonic_story": plan.overall_harmonic_story,
         "section_intents": [asdict(intent) for intent in plan.section_intents],
         "divisions": plan.divisions,
+        "timing_contract": plan.timing_contract,
+        "total_score_units": plan.total_score_units,
         "length_units_by_score_unit": plan.length_units_by_score_unit,
         "projection_ledger": [asdict(entry) for entry in plan.projection_ledger],
     }

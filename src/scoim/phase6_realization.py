@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from llm_musical_composer.performance_timing import TimingResolutionError
 from llm_musical_composer.run_state import atomic_write_json, sha256_file, sha256_json
 
 from .neutral_score_preview import (
@@ -22,6 +23,7 @@ from .projection_ledger import (
     validate_projection_ledger,
 )
 from .score_projection import ScoreProjectionError, build_score_spec
+from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
 
@@ -67,12 +69,15 @@ def realize_phase6(
             raise ValueError("phase-4 and phase-5 placement values overlap")
         notes_by_placement.update(loaded.notes_by_material_placement)
         harmonic_plan = loaded.phase4.phase3.plan
+        if harmonic_plan.timing_contract != QUANTIZED_TIMING:
+            raise ValueError("new phase 6 requires the current timing contract; start a new trial")
         unit_ids = tuple(harmonic_plan.length_units_by_score_unit)
         score, new_evidence = build_score_spec(
             request.validated_script,
             harmonic_plan.piece_plan,
             score_id=f"{harmonic_plan.piece_plan.plan_id}-score",
             divisions=harmonic_plan.divisions,
+            timing_contract=harmonic_plan.timing_contract,
             length_units_by_score_unit=harmonic_plan.length_units_by_score_unit,
             harmonies_by_score_unit=loaded.phase4.phase3.harmonies_by_score_unit,
             directions_by_score_unit={unit_id: () for unit_id in unit_ids},
@@ -125,21 +130,30 @@ def realize_phase6(
         for unit in score.score_units
     )
     target_seconds = float(setup["target_duration_seconds"])
-    write_neutral_score_preview(
-        preview_segments,
-        target_seconds,
-        preview_path,
-        meta_track_name="SCoIM phase 6 score",
-        note_track_name="Score",
-    )
     try:
-        check_neutral_score_preview(preview_segments, target_seconds, preview_path)
+        write_neutral_score_preview(
+            preview_segments,
+            target_seconds,
+            preview_path,
+            meta_track_name="SCoIM phase 6 score",
+            note_track_name="Score",
+            timing_contract=harmonic_plan.timing_contract,
+        )
+        check_neutral_score_preview(
+            preview_segments,
+            target_seconds,
+            preview_path,
+            timing_contract=harmonic_plan.timing_contract,
+        )
     except ValueError as error:
-        issue = ValidationIssue(IssueCode.SEMANTIC_INVALID, str(error), "/score_preview")
-        _write_failure_record(temporary, "preview_invalid", issue)
+        unrepresentable = isinstance(error, TimingResolutionError)
+        outcome = "unrepresentable" if unrepresentable else "preview_invalid"
+        code = IssueCode.UNREPRESENTABLE if unrepresentable else IssueCode.SEMANTIC_INVALID
+        issue = ValidationIssue(code, str(error), "/score_preview")
+        _write_failure_record(temporary, outcome, issue)
         return Phase6RealizationResult(
             False,
-            "preview_invalid",
+            outcome,
             temporary,
             None,
             (issue,),

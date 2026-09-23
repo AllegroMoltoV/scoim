@@ -27,6 +27,7 @@ from .score_rendering import (
     write_rendered_performance_smf,
     write_score_musicxml,
 )
+from .score_timing import QUANTIZED_TIMING
 from .validation import CheckResult, IssueCode, ValidationIssue
 
 _PHASE_NAMES = ("phase3", "phase4", "phase5", "phase6", "phase7")
@@ -119,12 +120,17 @@ def create_phase8_bundle(
         loaded = load_complete_phase7_run(phase_dirs["phase7"])
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.SEMANTIC_INVALID, str(error), target)
-    if loaded.phase7_schema_version != 2:
+    if loaded.phase7_schema_version != 3:
         return _bundle_failure(
             IssueCode.LINEAGE_MISMATCH,
-            "a schema-version-3 bundle requires phase-7 schema version 2",
+            "a schema-version-4 bundle requires phase-7 schema version 3",
             target,
         )
+
+    try:
+        _require_current_timing_lineage(phase_dirs)
+    except (KeyError, OSError, TypeError, ValueError) as error:
+        return _bundle_failure(IssueCode.LINEAGE_MISMATCH, str(error), target)
 
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_root = Path(tempfile.mkdtemp(prefix=f".{target.name}-", dir=target.parent)).resolve()
@@ -181,7 +187,7 @@ def create_phase8_bundle(
         }
         manifest = {
             "bundle_type": "scoim-generation-trial",
-            "schema_version": 3,
+            "schema_version": 4,
             "target_profile": "solo_piano_3m_v2",
             "composition_id": request.composition_id,
             "trial_id": request.trial_id,
@@ -251,7 +257,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         schema_version = manifest.get("schema_version")
         if (
             manifest.get("bundle_type") != "scoim-generation-trial"
-            or schema_version not in {1, 2, 3}
+            or schema_version not in {1, 2, 3, 4}
             or manifest.get("target_profile") != "solo_piano_3m_v2"
         ):
             raise ValueError("bundle identity is invalid")
@@ -287,7 +293,15 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         }
         if any(manifest.get(name) != digest for name, digest in expected_hashes.items()):
             raise ValueError("bundle lineage hash does not match")
-        if schema_version in {2, 3}:
+        if schema_version == 4 and loaded.phase7_schema_version != 3:
+            raise ValueError("bundle v4 requires phase7 v3 with the current timing contract")
+        if schema_version == 4:
+            _require_current_timing_lineage(
+                {name: bundle / "model-runs" / name for name in _PHASE_NAMES}
+            )
+        if schema_version in {1, 2} and loaded.phase7_schema_version == 3:
+            raise ValueError("old bundles cannot contain the current timing contract")
+        if schema_version in {2, 3, 4}:
             composition_id = manifest.get("composition_id")
             trial_id = manifest.get("trial_id")
             composition_manifest_bytes = (
@@ -316,6 +330,21 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
     except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         return (ValidationIssue(IssueCode.LINEAGE_MISMATCH, str(error), "/bundle"),)
     return ()
+
+
+def _require_current_timing_lineage(phase_dirs: Mapping[str, Path]) -> None:
+    spec = _read_object(phase_dirs["phase3"] / "run-spec.json")
+    if spec.get("schema_version") != 3 or spec.get("timing_contract") != QUANTIZED_TIMING:
+        raise ValueError("bundle v4 requires the current phase-3 timing contract")
+    states = [phase_dirs["phase3"] / "outputs" / "phase3-state.json"]
+    states.extend(
+        phase_dirs[name] / "inputs" / "phase3-state.json" for name in ("phase4", "phase5", "phase6")
+    )
+    for path in states:
+        state = _read_object(path)
+        plan = cast(Mapping[str, object], state["harmonic_plan"])
+        if plan.get("timing_contract") != QUANTIZED_TIMING:
+            raise ValueError("bundle v4 cannot mix phase timing contracts")
 
 
 def _bundle_failure(code: IssueCode, message: str, target: Path) -> Phase8BundleResult:

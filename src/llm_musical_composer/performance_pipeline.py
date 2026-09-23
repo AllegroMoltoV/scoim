@@ -488,16 +488,9 @@ def _profile_deviation(
     else:
         amplitude = 0.05 if amount == "subtle" else 0.09
     if profile == "savor" and timing_budget_id == "narrative-v2":
-        control_points = (
-            (0.00, 1.00),
-            (0.22, 0.80),
-            (0.30, -1.00),
-            (0.36, 0.20),
-            (0.62, 1.00),
-            (0.69, -0.80),
-            (0.76, 0.20),
-            (1.00, 1.00),
-        )
+        from .performance_timing import SAVOR_CONTROL_POINTS
+
+        control_points = SAVOR_CONTROL_POINTS
         for (left_x, left_y), (right_x, right_y) in pairwise(control_points):
             if left_x <= position <= right_x:
                 local = (position - left_x) / (right_x - left_x)
@@ -731,6 +724,7 @@ def render_role_neutral_performance_with_pedal_sources(
     performance: PerformanceSpec,
     *,
     group_same_key_onsets: bool = False,
+    integrated_timing: bool = False,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     """Render without role inference and return each pedal event's originating leaf."""
     _validate_pipeline_stages(
@@ -744,6 +738,7 @@ def render_role_neutral_performance_with_pedal_sources(
         score,
         performance,
         group_same_key_onsets=group_same_key_onsets,
+        integrated_timing=integrated_timing,
     )
 
 
@@ -759,19 +754,38 @@ def _render_performance_unchecked_with_pedal_sources(
     performance: PerformanceSpec,
     *,
     group_same_key_onsets: bool = False,
+    integrated_timing: bool = False,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     leaves, intervals = ordered_leaf_schedule(plan, score)
     materials = {material.material_id: material for material in score.materials}
     node_by_id = {node.node_id: node for node in plan.nodes}
     performance_by_node = {item.node_id: item for item in performance.node_performances}
     total_units = intervals[plan.root_node_id][1]
-    time_map = _time_map(total_units, intervals, performance)
+    from .performance_timing import SparseTimeMap, TimingResolutionError
+
+    time_map = (
+        SparseTimeMap(total_units, intervals, performance, _profile_deviation)
+        if integrated_timing
+        else _time_map(total_units, intervals, performance)
+    )
+    if integrated_timing and any(
+        time_map[end] <= time_map[start] for start, end in intervals.values()
+    ):
+        raise TimingResolutionError("a score section collapses at integer-millisecond precision")
     final_leaf_id = leaves[-1][0].node_id
     notes: list[PerformedNote] = []
     rendered_harmonies: list[RenderedHarmony] = []
     for leaf, start, _ in leaves:
         assert leaf.score_material_id is not None
         material = materials[leaf.score_material_id]
+        if integrated_timing and any(
+            time_map[start + harmony.at_units + harmony.duration_units]
+            <= time_map[start + harmony.at_units]
+            for harmony in material.harmonies
+        ):
+            raise TimingResolutionError(
+                "a score harmony collapses at integer-millisecond precision"
+            )
         _, articulation = resolve_effective_profile(
             leaf,
             node_by_id,
@@ -821,6 +835,10 @@ def _render_performance_unchecked_with_pedal_sources(
             ending_unit = onset_unit + note.duration_units
             onset = time_map[onset_unit] + coordination_offsets[note.event_id]
             mapped_duration = time_map[ending_unit] - onset
+            if integrated_timing and mapped_duration <= 0:
+                raise TimingResolutionError(
+                    "a score note collapses at integer-millisecond precision"
+                )
             preserves_terminal_release = (
                 leaf.node_id == final_leaf_id
                 and note.at_units == final_onset
@@ -829,15 +847,17 @@ def _render_performance_unchecked_with_pedal_sources(
             release_factor = (
                 1.0 if preserves_terminal_release else performance.key_release_percent / 100
             )
+            duration = round(mapped_duration * _gate_ratio(note, articulation) * release_factor)
+            if integrated_timing and duration <= 0:
+                raise TimingResolutionError(
+                    "a performed note collapses at integer-millisecond precision"
+                )
             notes.append(
                 PerformedNote(
                     event_id=f"{leaf.node_id}:{note.event_id}",
                     occurrence_node_id=leaf.node_id,
                     at_ms=onset,
-                    duration_ms=max(
-                        1,
-                        round(mapped_duration * _gate_ratio(note, articulation) * release_factor),
-                    ),
+                    duration_ms=max(1, duration),
                     pitch=note.pitch,
                     velocity=min(
                         127,

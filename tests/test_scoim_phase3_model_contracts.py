@@ -30,6 +30,7 @@ def _document() -> dict[str, object]:
 def _overall_response() -> dict[str, object]:
     return {
         "mode": "major",
+        "total_score_units": 120,
         "overall_harmonic_story": "安定した響きから少し離れ、主調へ戻る。",
         "section_harmonic_intents": [
             {
@@ -77,7 +78,6 @@ def test_overall_plan_is_bound_to_leaf_sections_in_performance_order() -> None:
         _overall_response(),
         tonal_center=0,
         divisions=12,
-        units_per_duration_weight=12,
     )
 
     assert result.piece_plan.tonal_center == 0
@@ -178,7 +178,6 @@ def test_harmony_prompt_contains_target_materials_variation_and_neighbor_context
         _overall_response(),
         tonal_center=0,
         divisions=12,
-        units_per_duration_weight=12,
     )
 
     prompt = harmony_prompt(

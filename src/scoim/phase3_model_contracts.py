@@ -10,6 +10,7 @@ from typing import cast
 from .projection_ledger import ProjectionLedgerEntry, validate_projection_ledger
 from .score_ir import PiecePlan, ScoreHarmony
 from .score_projection import PlanChoice, build_piece_plan
+from .score_timing import LEGACY_TIMING, MAX_SCORE_UNITS, QUANTIZED_TIMING, allocate_score_units
 from .validation import IssueCode, ValidationIssue
 
 
@@ -29,6 +30,8 @@ class HarmonicPlan:
     divisions: int
     length_units_by_score_unit: dict[str, int]
     projection_ledger: tuple[ProjectionLedgerEntry, ...]
+    timing_contract: str = LEGACY_TIMING
+    total_score_units: int | None = None
 
 
 def ordered_leaf_section_ids(document: Mapping[str, object]) -> tuple[str, ...]:
@@ -73,11 +76,13 @@ def overall_plan_response_schema(*, leaf_count: int) -> dict[str, object]:
         "additionalProperties": False,
         "required": [
             "mode",
+            "total_score_units",
             "overall_harmonic_story",
             "section_harmonic_intents",
         ],
         "properties": {
             "mode": {"type": "string", "enum": ["major", "minor"]},
+            "total_score_units": {"type": "integer", "minimum": 1, "maximum": MAX_SCORE_UNITS},
             "overall_harmonic_story": {"type": "string", "minLength": 1},
             "section_harmonic_intents": {
                 "type": "array",
@@ -89,7 +94,9 @@ def overall_plan_response_schema(*, leaf_count: int) -> dict[str, object]:
     }
 
 
-def overall_plan_prompt(document: Mapping[str, object], *, tonal_center: int) -> str:
+def overall_plan_prompt(
+    document: Mapping[str, object], *, tonal_center: int, divisions: int = 12
+) -> str:
     """Ask for mode and harmonic intent around one preselected tonal center."""
     script = cast(dict[str, object], document["script"])
     sections = cast(dict[str, dict[str, object]], script["sections"])
@@ -106,6 +113,10 @@ def overall_plan_prompt(document: Mapping[str, object], *, tonal_center: int) ->
         "title": script["title"],
         "brief": script["brief"],
         "tonal_center": tonal_center,
+        "target_duration_seconds": cast(Mapping[str, object], script["performance_setup"])[
+            "target_duration_seconds"
+        ],
+        "divisions": divisions,
         "leaf_sections_in_performance_order": leaf_sections,
         "materials": script["materials"],
         "material_placements": script["material_placements"],
@@ -114,7 +125,12 @@ def overall_plan_prompt(document: Mapping[str, object], *, tonal_center: int) ->
     }
     return (
         "入力で指定された主音を変えず、曲全体の長調・短調と和声の流れを設計してください。"
-        "主音は応答へ返さないでください。区分IDも応答へ返さず、"
+        "主音は応答へ返さないでください。希望演奏時間と音楽意図から全曲の譜面時間量"
+        "total_score_unitsを選んでください。四分音符の長さはdivisions unitsです。"
+        "total_score_units/divisionsが全曲の四分音符換算長となり、希望演奏時間と合わせて"
+        "中立演奏の速度が決まります。構成比の整数化や小数桁から容量を決めず、"
+        "旋律・伴奏の音価を表現できる容量を選んでください。"
+        "区分境界をこの格子へ丸め、0unitの区分を認めません。区分IDも応答へ返さず、"
         "section_harmonic_intentsを入力の子なし区分と同じ順、同じ件数で返してください。"
         "指定されたSchemaだけに従ってください。\n\n"
         f"入力: {json.dumps(context, ensure_ascii=False, sort_keys=False)}\n"
@@ -127,7 +143,6 @@ def build_harmonic_plan(
     *,
     tonal_center: int,
     divisions: int,
-    units_per_duration_weight: int,
 ) -> HarmonicPlan:
     """Bind positional model intent to deterministic plan nodes and time capacity."""
     piece_plan, ledger = build_piece_plan(
@@ -136,6 +151,7 @@ def build_harmonic_plan(
             tonal_center=tonal_center,
             mode=cast(str, response["mode"]),
         ),
+        timing_contract=QUANTIZED_TIMING,
     )
     leaf_nodes = tuple(node for node in piece_plan.nodes if node.score_unit_id is not None)
     response_intents = cast(list[dict[str, object]], response["section_harmonic_intents"])
@@ -150,12 +166,14 @@ def build_harmonic_plan(
         )
         for node, intent in zip(leaf_nodes, response_intents, strict=True)
     )
-    lengths: dict[str, int] = {}
-    for node in leaf_nodes:
-        raw_length = cast(float, node.duration_weight) * units_per_duration_weight
-        if not float(raw_length).is_integer() or raw_length <= 0:
-            raise ValueError("duration weight cannot be represented by the configured unit grid")
-        lengths[cast(str, node.score_unit_id)] = int(raw_length)
+    total_score_units = cast(int, response["total_score_units"])
+    section_lengths, timing_evidence = allocate_score_units(
+        {node.section_id: cast(float, node.duration_weight) for node in leaf_nodes},
+        total_score_units,
+    )
+    lengths = {
+        cast(str, node.score_unit_id): section_lengths[node.section_id] for node in leaf_nodes
+    }
     score_unit_ledger = tuple(
         ProjectionLedgerEntry(
             source_kind="plan_node",
@@ -163,9 +181,12 @@ def build_harmonic_plan(
             target_kind="score_unit",
             target_id=cast(str, node.score_unit_id),
             target_stage="harmonic_plan",
-            verification="direct_id_equality",
+            verification="quantized_section_boundary",
             status="passed",
-            evidence=(f"plan_node_id={node.section_id}; score_unit_id={node.score_unit_id}"),
+            evidence=(
+                f"plan_node_id={node.section_id}; score_unit_id={node.score_unit_id}; "
+                f"{timing_evidence[node.section_id]}"
+            ),
         )
         for node in leaf_nodes
     )
@@ -178,6 +199,8 @@ def build_harmonic_plan(
         divisions=divisions,
         length_units_by_score_unit=lengths,
         projection_ledger=completed_ledger,
+        timing_contract=QUANTIZED_TIMING,
+        total_score_units=total_score_units,
     )
 
 
@@ -343,6 +366,8 @@ def harmony_prompt(
             "section_description": sections[target_intent.section_id]["description"],
             "score_unit_id": target_intent.score_unit_id,
             "length_units": plan.length_units_by_score_unit[target_intent.score_unit_id],
+            "divisions": plan.divisions,
+            "total_score_units": plan.total_score_units,
             "harmonic_intent": target_intent.harmonic_intent,
             "connection_from_previous": target_intent.connection_from_previous,
             "material_placements": target_placements,

@@ -20,6 +20,7 @@ $legacyRuntimeTestNames = @(
     'test_material_development.py'
     'test_music_dsl.py'
     'test_performance_pipeline.py'
+    'test_performance_timing.py'
     'test_piano_texture_pilot.py'
     'test_piano_texture_register_placement.py'
     'test_pilot_features.py'

@@ -45,4 +45,5 @@ def write_phase4_foreground_preview(
         output_path,
         meta_track_name="SCoIM phase 4 foreground",
         note_track_name="Foreground",
+        timing_contract=plan.timing_contract,
     )

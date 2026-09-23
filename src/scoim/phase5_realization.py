@@ -31,6 +31,7 @@ from .projection_ledger import (
 )
 from .proposal import ProposalRunner, preflight_runner
 from .score_ir import ScoreNote
+from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
 
@@ -76,6 +77,13 @@ def realize_phase5(
         return Phase5RealizationResult(False, "request_invalid", None, None, (issue,))
 
     destination = Path(run_dir).resolve()
+    if loaded.phase3.plan.timing_contract != QUANTIZED_TIMING:
+        issue = ValidationIssue(
+            IssueCode.SEMANTIC_INVALID,
+            "new phase 5 requires the current timing contract; start a new trial",
+            "/phase5_request",
+        )
+        return Phase5RealizationResult(False, "request_invalid", None, None, (issue,))
     input_ledger = loaded.cumulative_projection_ledger
     operation_order = [operation.operation_id for operation in operations]
     max_calls = 2 * len(operation_order)

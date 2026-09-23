@@ -30,7 +30,8 @@ def test_public_v2_run_initializes_its_identity_with_the_output_root(tmp_path: P
     assert result.resumed is False
     record = json.loads((output / "public-run.json").read_text(encoding="utf-8"))
     assert record == {
-        "schema_version": 1,
+        "schema_version": 2,
+        "timing_contract": "quantized-score-v1",
         "operation": "scoim-public-v2-realization",
         "input_kind": "flow",
         "input_sha256": "a" * 64,

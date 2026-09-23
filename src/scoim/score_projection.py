@@ -29,6 +29,7 @@ from .score_ir import (
     validate_piece_plan,
     validate_score_ir,
 )
+from .score_timing import LEGACY_TIMING, QUANTIZED_TIMING, check_timing_contract
 
 
 class ScoreProjectionError(ValueError):
@@ -42,7 +43,7 @@ class PlanChoice:
 
 
 def build_piece_plan(
-    document: Mapping[str, object], choice: PlanChoice
+    document: Mapping[str, object], choice: PlanChoice, *, timing_contract: str = LEGACY_TIMING
 ) -> tuple[PiecePlan, tuple[ProjectionLedgerEntry, ...]]:
     """Build the phase-3 structural plan without inventing musical content."""
     validation = check_generation_script_document(document)
@@ -81,13 +82,20 @@ def build_piece_plan(
         section_id: Fraction(str(sections[section_id]["relative_length"]))
         for section_id in leaf_ids
     }
-    denominator = math.lcm(*(length.denominator for length in relative_lengths.values()))
-    unscaled = {
-        section_id: length.numerator * (denominator // length.denominator)
-        for section_id, length in relative_lengths.items()
-    }
-    divisor = reduce(math.gcd, unscaled.values())
-    duration_weights = {section_id: value // divisor for section_id, value in unscaled.items()}
+    check_timing_contract(timing_contract)
+    if timing_contract == QUANTIZED_TIMING:
+        duration_weights = {
+            section_id: cast(float, sections[section_id]["relative_length"])
+            for section_id in leaf_ids
+        }
+    else:
+        denominator = math.lcm(*(length.denominator for length in relative_lengths.values()))
+        unscaled = {
+            section_id: length.numerator * (denominator // length.denominator)
+            for section_id, length in relative_lengths.items()
+        }
+        divisor = reduce(math.gcd, unscaled.values())
+        duration_weights = {section_id: value // divisor for section_id, value in unscaled.items()}
     nodes = tuple(
         PlanNode(
             section_id=section_id,
@@ -135,6 +143,7 @@ def build_score_spec(
     directions_by_score_unit: Mapping[str, tuple[ScoreDirection, ...]],
     notes_by_material_placement: Mapping[str, tuple[ScoreNote, ...]],
     cumulative_projection_ledger: Sequence[ProjectionLedgerEntry],
+    timing_contract: str = LEGACY_TIMING,
 ) -> tuple[ScoreSpec, tuple[ProjectionLedgerEntry, ...]]:
     """Build phase-6 score data from already validated stage values."""
     validation = check_generation_script_document(document)
@@ -144,6 +153,7 @@ def build_score_spec(
     expected_plan, _ = build_piece_plan(
         document,
         PlanChoice(tonal_center=plan.tonal_center, mode=plan.mode),
+        timing_contract=timing_contract,
     )
     if plan != expected_plan:
         raise ScoreProjectionError("piece plan does not match the script source content")

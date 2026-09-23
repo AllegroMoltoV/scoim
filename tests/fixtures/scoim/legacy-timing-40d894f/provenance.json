@@ -1,0 +1,35 @@
+{
+  "archive_file": "bundle.zip",
+  "archive_file_count": 96,
+  "archive_sha256": "9b14b106812b3a37d06cc34b8d59a6fad486e7029a85d487c82b26581c751223",
+  "artifact_sha256": {
+    "artifacts/final.mid": "6477800b20437a784e476ef25c3897bb0df140816f1012bee535ed143a0fb36e",
+    "artifacts/score.musicxml": "540a234b8ec39252deb61aefab9e9d6b1b2e91a16e11e881e1d1b5f16aafe078"
+  },
+  "bundle_schema_version": 3,
+  "fixture_manifest_sha256": "363b6bef19497b0fa84b5a0a3ed696febe81a7c6e8560aada75af99e3d0d0bcd",
+  "fixture_version": 1,
+  "phase3_schema_version": 2,
+  "phase7_schema_version": 2,
+  "sanitization": {
+    "checks.json": {
+      "/musicxml/path": "artifacts/score.musicxml",
+      "/smf/path": "artifacts/final.mid"
+    },
+    "manifest.json": "Updated files.checks.json SHA-256 after path sanitization; other values unchanged."
+  },
+  "scope": "Genuine pre-timing-change completed bundle with one section, one note, and no performance directions. Covers public offline replay and artifact bytes; does not cover rubato or relative section duration changes.",
+  "source_commit": "40d894f",
+  "source_generation": "scripts/smoke-installed-public.py installed-wheel public smoke on 2026-09-23",
+  "source_inputs": [
+    "examples/fixed-v2/approved-flow.json",
+    "examples/fixed-v2/responses.json"
+  ],
+  "source_manifest_sha256": "c352e9588b706b751562f36280f953f1bd44086c1bc59ec1af59e9e1c6593acb",
+  "source_package_version": "0.2.0",
+  "source_runner": {
+    "external_model_calls": 0,
+    "model": "fixed-model",
+    "provider": "fixed-smoke"
+  }
+}

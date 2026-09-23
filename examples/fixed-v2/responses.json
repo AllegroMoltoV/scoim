@@ -30,6 +30,7 @@
   {
     "mode": "major",
     "overall_harmonic_story": "主調を示して閉じる。",
+    "total_score_units": 12,
     "section_harmonic_intents": [
       {
         "harmonic_intent": "主調を示して閉じる。",

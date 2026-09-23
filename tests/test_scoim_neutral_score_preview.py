@@ -7,6 +7,7 @@ from scoim.neutral_score_preview import (
     write_neutral_score_preview,
 )
 from scoim.score_ir import ScoreNote
+from scoim.score_timing import QUANTIZED_TIMING
 
 
 def test_neutral_score_preview_rejects_a_changed_note_event(tmp_path) -> None:
@@ -35,3 +36,16 @@ def test_neutral_score_preview_rejects_a_changed_note_event(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="note events do not match"):
         check_neutral_score_preview(segments, 3.0, preview_path)
+
+
+def test_quantized_preview_rejects_a_note_lost_at_tick_precision(tmp_path) -> None:
+    segments = (NeutralPreviewSegment(10**9, (ScoreNote("short", 1, 1, 72, "upper"),)),)
+    with pytest.raises(ValueError, match="preview tick precision"):
+        write_neutral_score_preview(
+            segments,
+            180.0,
+            tmp_path / "preview.mid",
+            meta_track_name="Test",
+            note_track_name="Notes",
+            timing_contract=QUANTIZED_TIMING,
+        )

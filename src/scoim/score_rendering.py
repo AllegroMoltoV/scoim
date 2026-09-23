@@ -28,6 +28,7 @@ from llm_musical_composer.performance_pipeline import (
     validate_musicxml_round_trip,
     validate_smf_round_trip,
 )
+from llm_musical_composer.performance_timing import TimingResolutionError
 
 from .performance_ir import (
     PerformanceSpec,
@@ -41,6 +42,7 @@ from .performance_ir import (
 )
 from .profile_capabilities import solo_piano_3m_v2_capabilities
 from .score_ir import PiecePlan, ScoreSpec, validate_score_ir
+from .score_timing import LEGACY_TIMING, QUANTIZED_TIMING, check_timing_contract
 from .validation import IssueCode, ValidationIssue
 
 
@@ -61,8 +63,10 @@ def render_score_performance(
     performance: PerformanceSpec,
     *,
     physical_key_contract: bool = True,
+    timing_contract: str = LEGACY_TIMING,
 ) -> RenderedPerformance:
     """Render v2 score data while preserving an explicit note-source correspondence."""
+    check_timing_contract(timing_contract)
     capabilities = solo_piano_3m_v2_capabilities()
     if not capabilities.supports_velocity_policy(performance.velocity_policy_id):
         raise ScoreRenderingError(
@@ -100,12 +104,18 @@ def render_score_performance(
         key_release_percent=performance.key_release_percent,
         velocity_policy_id=performance.velocity_policy_id,
     )
-    legacy_rendered, pedal_source_sections = render_role_neutral_performance_with_pedal_sources(
-        legacy_plan,
-        legacy_score,
-        legacy_performance,
-        group_same_key_onsets=physical_key_contract,
-    )
+    try:
+        legacy_rendered, pedal_source_sections = render_role_neutral_performance_with_pedal_sources(
+            legacy_plan,
+            legacy_score,
+            legacy_performance,
+            group_same_key_onsets=physical_key_contract,
+            integrated_timing=timing_contract == QUANTIZED_TIMING,
+        )
+    except TimingResolutionError as error:
+        raise ScoreRenderingError(
+            ValidationIssue(IssueCode.UNREPRESENTABLE, str(error), "/performance/timing")
+        ) from error
     unit_id_by_section = {unit.source_section_id: unit.score_unit_id for unit in score.score_units}
     note_candidates = tuple(
         PerformedNote(
@@ -228,6 +238,7 @@ def _legacy_score_boundary(
     }
     if layer_placement_ids != set(placements):
         raise ScoreRenderingError("score layers do not match the script material placements")
+    lengths = {unit.score_unit_id: unit.length_units for unit in score.score_units}
     legacy_plan = LegacyPiecePlan(
         plan.plan_id,
         plan.title,
@@ -243,7 +254,7 @@ def _legacy_score_boundary(
                 "whole" if node.section_id == plan.root_section_id else "statement",
                 derived_from=None,
                 duration_weight=(
-                    int(node.duration_weight) if node.duration_weight is not None else None
+                    lengths[node.score_unit_id] if node.score_unit_id is not None else None
                 ),
                 score_material_id=node.score_unit_id,
             )

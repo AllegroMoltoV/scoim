@@ -28,7 +28,40 @@ from scoim.score_rendering import (
     write_rendered_performance_smf,
     write_score_musicxml,
 )
+from scoim.score_timing import QUANTIZED_TIMING
 from scoim.validation import IssueCode
+
+
+@pytest.mark.parametrize("short_interval", ["note", "harmony"])
+def test_quantized_rendering_rejects_intervals_lost_at_ms_precision(short_interval) -> None:
+    plan, score, performance = _score_inputs()
+    script = _script()
+    script["script"]["material_placements"].pop("support-first")
+    unit = score.score_units[0]
+    long_duration = 10**9
+    if short_interval == "note":
+        harmonies = (replace(unit.harmonies[0], duration_units=long_duration),)
+        notes = (ScoreNote("short", 1, 1, 72, "upper"),)
+    else:
+        harmonies = (
+            replace(unit.harmonies[0], duration_units=1),
+            ScoreHarmony("remaining", 1, long_duration - 1, 0, "major"),
+        )
+        notes = (ScoreNote("long", 0, long_duration, 72, "upper"),)
+    score = replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                length_units=long_duration,
+                harmonies=harmonies,
+                score_unit_layers=(replace(unit.score_unit_layers[0], notes=notes),),
+            ),
+        ),
+    )
+    with pytest.raises(ScoreRenderingError, match=f"score {short_interval} collapses") as error:
+        render_score_performance(script, plan, score, performance, timing_contract=QUANTIZED_TIMING)
+    assert error.value.issue.code == IssueCode.UNREPRESENTABLE
 
 
 def _script() -> dict[str, object]:
@@ -58,6 +91,73 @@ def _script() -> dict[str, object]:
             "script_element_variation_relations": {},
         }
     }
+
+
+def test_quantized_rendering_preserves_notes_pedals_and_boundaries_when_scaled() -> None:
+    plan, score, performance = _score_inputs()
+    performance = replace(
+        performance,
+        timing_budget_id="narrative-v2",
+        section_performances=(
+            replace(performance.section_performances[0], timing_profile="savor"),
+            SectionPerformance(
+                "statement",
+                timing_profile="build",
+                timing_amount="moderate",
+                pedal_profile="harmony_legato",
+            ),
+        ),
+    )
+    scaled = replace(
+        score,
+        divisions=score.divisions * 10,
+        score_units=tuple(
+            replace(
+                unit,
+                length_units=unit.length_units * 10,
+                harmonies=tuple(
+                    replace(
+                        harmony,
+                        at_units=harmony.at_units * 10,
+                        duration_units=harmony.duration_units * 10,
+                    )
+                    for harmony in unit.harmonies
+                ),
+                score_unit_layers=tuple(
+                    replace(
+                        layer,
+                        notes=tuple(
+                            replace(
+                                note,
+                                at_units=note.at_units * 10,
+                                duration_units=note.duration_units * 10,
+                            )
+                            for note in layer.notes
+                        ),
+                    )
+                    for layer in unit.score_unit_layers
+                ),
+            )
+            for unit in score.score_units
+        ),
+    )
+    original = render_score_performance(
+        _script(),
+        plan,
+        score,
+        performance,
+        timing_contract=QUANTIZED_TIMING,
+    )
+    enlarged = render_score_performance(
+        _script(),
+        plan,
+        scaled,
+        performance,
+        timing_contract=QUANTIZED_TIMING,
+    )
+    assert enlarged.notes == original.notes
+    assert enlarged.pedals == original.pedals
+    assert enlarged.section_intervals == original.section_intervals
 
 
 def _score_inputs() -> tuple[PiecePlan, ScoreSpec, PerformanceSpec]:

@@ -57,6 +57,7 @@ def _generation_responses() -> list[dict[str, object]]:
         {
             "mode": "major",
             "overall_harmonic_story": "主調を示して閉じる。",
+            "total_score_units": 12,
             "section_harmonic_intents": [
                 {
                     "harmonic_intent": "主調を示して閉じる。",
@@ -346,7 +347,11 @@ def test_realize_cli_uses_v2_for_new_generation_by_default(
     assert manifest["target_profile"] == "solo_piano_3m_v2"
 
 
-def test_public_v2_rejects_a_changed_trial_id_before_model_access(tmp_path: Path) -> None:
+@pytest.mark.parametrize("conflict", ["trial_id", "legacy_timing"])
+def test_public_v2_rejects_a_changed_run_contract_before_model_access(
+    tmp_path: Path,
+    conflict: str,
+) -> None:
     composition = _composition_bundle(tmp_path)
     output = tmp_path / "output"
     first = realize(
@@ -359,12 +364,19 @@ def test_public_v2_rejects_a_changed_trial_id_before_model_access(tmp_path: Path
     assert first.succeeded is True, first.issues
     runner = PublicV2Runner([])
 
+    if conflict == "legacy_timing":
+        marker_path = output / "public-run.json"
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        marker["schema_version"] = 1
+        marker.pop("timing_contract")
+        marker_path.write_text(json.dumps(marker), encoding="utf-8")
+
     changed = realize(
         composition,
         output,
         runner=runner,
         model="fixed",
-        trial_id="trial-002",
+        trial_id="trial-002" if conflict == "trial_id" else "trial-001",
     )
 
     assert changed.succeeded is False

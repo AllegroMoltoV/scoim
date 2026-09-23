@@ -25,6 +25,7 @@ from .profile_capabilities import (
 from .projection_ledger import validate_projection_ledger
 from .proposal import ProposalRunner, preflight_runner
 from .score_rendering import ScoreRenderingError, render_score_performance
+from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
 
@@ -59,6 +60,8 @@ def realize_phase7(
     try:
         loaded = load_complete_phase6_run(request.phase6_run_dir)
         document = loaded.validated_script
+        if loaded.phase5.phase4.phase3.plan.timing_contract != QUANTIZED_TIMING:
+            raise ValueError("new phase 7 requires the current timing contract; start a new trial")
         plan = loaded.phase5.phase4.phase3.plan.piece_plan
         score = loaded.score
         capabilities = solo_piano_3m_v2_capabilities()
@@ -71,7 +74,8 @@ def realize_phase7(
     store = RunStore(destination, max_calls=2 * len(operations))
     operation_order = [operation.operation_id for operation in operations]
     spec = {
-        "schema_version": 2,
+        "schema_version": 3,
+        "timing_contract": QUANTIZED_TIMING,
         "operation": "phase7-performance-realization",
         "target_profile": request.target_profile,
         "input_script_sha256": sha256_json(document),
@@ -163,8 +167,15 @@ def realize_phase7(
     cumulative_ledger = (*loaded.cumulative_projection_ledger, *built.projection_ledger)
     validate_projection_ledger(cumulative_ledger)
     try:
-        rendered = render_score_performance(document, plan, score, built.performance)
-    except (KeyError, TypeError, ValueError, ScoreRenderingError) as error:
+        rendered = render_score_performance(
+            document, plan, score, built.performance, timing_contract=QUANTIZED_TIMING
+        )
+    except ScoreRenderingError as error:
+        outcome = (
+            "unrepresentable" if error.issue.code == IssueCode.UNREPRESENTABLE else "render_invalid"
+        )
+        return _publish_failure(store, destination, outcome, (error.issue,), None)
+    except (KeyError, TypeError, ValueError) as error:
         issue = ValidationIssue(IssueCode.SEMANTIC_INVALID, str(error), "/performance")
         return _publish_failure(store, destination, "render_invalid", (issue,), None)
 

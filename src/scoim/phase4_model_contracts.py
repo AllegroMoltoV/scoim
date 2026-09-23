@@ -89,6 +89,8 @@ def foreground_prompt(
         "section_description": sections[operation.section_id]["description"],
         "material_description": materials[operation.material_id]["description"],
         "length_units": plan.length_units_by_score_unit[operation.score_unit_id],
+        "divisions": plan.divisions,
+        "total_score_units": plan.total_score_units,
         "harmonic_intent": intent.harmonic_intent,
         "shared_harmony": [
             {

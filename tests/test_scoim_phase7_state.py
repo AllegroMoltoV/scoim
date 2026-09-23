@@ -6,8 +6,11 @@ from test_scoim_phase6_state import _phase6_run
 from test_scoim_phase7_realization import _response
 
 from llm_musical_composer.run_state import sha256_json
+from scoim.performance_ir import PerformanceSpec, SectionPerformance, rendered_performance_to_json
 from scoim.phase7_realization import Phase7Request, realize_phase7
 from scoim.phase7_state import load_complete_phase7_run
+from scoim.score_ir import piece_plan_from_json, score_spec_from_json
+from scoim.score_rendering import render_score_performance
 
 
 def _phase7_run(tmp_path):
@@ -22,22 +25,29 @@ def _rewrite_as_phase7_schema_v1(run_dir) -> None:
     run_spec_path = run_dir / "run-spec.json"
     run_spec = json.loads(run_spec_path.read_text(encoding="utf-8"))
     run_spec["schema_version"] = 1
+    run_spec.pop("timing_contract", None)
     run_spec_path.write_text(json.dumps(run_spec), encoding="utf-8")
 
     score = json.loads((run_dir / "inputs" / "score-spec.json").read_text(encoding="utf-8"))
-    voice_by_note_id = {
-        note["score_note_id"]: note["voice"]
-        for unit in score["score_units"]
-        for layer in unit["score_unit_layers"]
-        for note in layer["notes"]
-    }
     rendered_path = run_dir / "outputs" / "rendered-performance.json"
-    rendered = json.loads(rendered_path.read_text(encoding="utf-8"))
-    for note in rendered["notes"]:
-        source_ids = note.pop("source_score_note_ids")
-        assert len(source_ids) == 1
-        note["source_score_note_id"] = source_ids[0]
-        note["voice"] = voice_by_note_id[source_ids[0]]
+    document = json.loads(
+        (run_dir / "inputs" / "validated-script.json").read_text(encoding="utf-8")
+    )
+    plan = piece_plan_from_json(
+        json.loads((run_dir / "inputs" / "piece-plan.json").read_text(encoding="utf-8"))
+    )
+    typed_score = score_spec_from_json(score)
+    raw_performance = json.loads(
+        (run_dir / "outputs" / "performance-spec.json").read_text(encoding="utf-8")
+    )
+    raw_performance["section_performances"] = tuple(
+        SectionPerformance(**value) for value in raw_performance["section_performances"]
+    )
+    performance = PerformanceSpec(**raw_performance)
+    legacy = render_score_performance(
+        document, plan, typed_score, performance, physical_key_contract=False
+    )
+    rendered = rendered_performance_to_json(legacy, typed_score, schema_version=1)
     rendered_path.write_text(json.dumps(rendered), encoding="utf-8")
 
     state_path = run_dir / "outputs" / "phase7-state.json"
@@ -52,8 +62,8 @@ def test_phase7_run_reconstructs_without_calling_a_model(tmp_path) -> None:
     loaded = load_complete_phase7_run(run_dir)
 
     run_spec = json.loads((run_dir / "run-spec.json").read_text(encoding="utf-8"))
-    assert run_spec["schema_version"] == 2
-    assert loaded.phase7_schema_version == 2
+    assert run_spec["schema_version"] == 3
+    assert loaded.phase7_schema_version == 3
     assert loaded.performance.section_performances[0].section_id == "statement"
     assert loaded.rendered.notes
     assert loaded.cumulative_projection_ledger[-1].status == "unverified"

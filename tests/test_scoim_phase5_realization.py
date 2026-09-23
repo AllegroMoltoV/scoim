@@ -91,6 +91,7 @@ def _upstream(tmp_path: Path) -> tuple[dict[str, object], dict[str, object], lis
     phase3_responses = [
         {
             "mode": "major",
+            "total_score_units": 120,
             "overall_harmonic_story": "主調から少し離れて戻る。",
             "section_harmonic_intents": [
                 {"harmonic_intent": "主調を示す。", "connection_from_previous": "始める。"},

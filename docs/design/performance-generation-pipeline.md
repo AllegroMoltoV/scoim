@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-    A[フェーズ2<br>検証済み楽曲設計データ] --> B[フェーズ3<br>PiecePlanと共有和声]
+    A[フェーズ2<br>検証済み楽曲設計データ] --> B[フェーズ3<br>PiecePlan・譜面時間量・共有和声]
     B --> C[フェーズ4<br>前景]
     C --> D[フェーズ5<br>伴奏]
     D --> E[フェーズ6<br>ScoreSpec]
@@ -21,7 +21,7 @@ flowchart LR
     G --> H
 ```
 
-フェーズ3で`PiecePlan`を確定し、後続の和声、前景、伴奏が同じ楽譜生成単位と時間容量を使うようにする。フェーズ6で`ScoreSpec`と診断用SMFを完成させる。フェーズ7は、楽譜を変えない自然言語の演奏指示、完成した楽譜、生成プロファイルの演奏要素と演奏選択語彙から`PerformanceSpec`と`RenderedPerformance`を作る。フェーズ8はMusicXMLとSMFを生成して再読込みする。正確な呼び出し順と失敗分岐は[生成工程](scoim-generation-workflow.md)を正本とする。
+フェーズ3で元の構成比を保持する`PiecePlan`と、独立に選ぶ[譜面時間量](glossary.md#譜面時間量)に基づく時間容量を確定する。後続の和声、前景、伴奏は同じ楽譜生成単位と量子化済み時間容量を使う。フェーズ6で`ScoreSpec`と診断用SMFを完成させる。フェーズ7は、楽譜を変えない自然言語の演奏指示、完成した楽譜、生成プロファイルの演奏要素と演奏選択語彙から`PerformanceSpec`と`RenderedPerformance`を作る。フェーズ8はMusicXMLとSMFを生成して再読込みする。正確な呼び出し順と失敗分岐は[生成工程](scoim-generation-workflow.md)を正本とする。
 
 新しい経路では、`scoim.performance_ir.PerformanceSpec`を演奏指定の正本型とする。旧`v1`の同名型へ変換してフェーズ7の検査を行わない。`ScoreSpec`からMusicXMLを、`RenderedPerformance`からSMFを作る。実装でまだ接続されていない処理は[roadmap](../roadmap/scoim-next-generation-path.md)に記載する。
 

@@ -29,6 +29,7 @@ from .projection_ledger import (
 )
 from .proposal import ProposalRunner, preflight_runner
 from .score_ir import ScoreNote
+from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
 
@@ -67,6 +68,8 @@ def realize_phase4(
             target_profile=request.target_profile,
         )
         plan = loaded.plan
+        if plan.timing_contract != QUANTIZED_TIMING:
+            raise ValueError("new phase 4 requires the current timing contract; start a new trial")
         harmonies_by_score_unit = loaded.harmonies_by_score_unit
         input_ledger = loaded.cumulative_projection_ledger
         operations = build_foreground_operations(request.validated_script)
@@ -235,12 +238,23 @@ def realize_phase4(
     )
     cumulative_ledger = (*input_ledger, *phase4_ledger)
     validate_projection_ledger(cumulative_ledger)
-    write_phase4_foreground_preview(
-        request.validated_script,
-        plan,
-        notes_by_placement,
-        destination / "outputs" / "foreground-preview.mid",
-    )
+    try:
+        write_phase4_foreground_preview(
+            request.validated_script,
+            plan,
+            notes_by_placement,
+            destination / "outputs" / "foreground-preview.mid",
+        )
+    except ValueError as error:
+        issue = ValidationIssue(IssueCode.UNREPRESENTABLE, str(error), "/foreground_preview")
+        state = _write_state(
+            destination,
+            notes_by_placement,
+            phase4_ledger,
+            outcome="unrepresentable",
+            request=request,
+        )
+        return _publish_failure(store, destination, "unrepresentable", (issue,), state)
     store.snapshot_json(
         "outputs/projection-ledger.json", [asdict(entry) for entry in cumulative_ledger]
     )

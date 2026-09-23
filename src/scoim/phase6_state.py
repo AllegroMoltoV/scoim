@@ -83,6 +83,7 @@ def load_complete_phase6_run(run_dir: str | Path) -> LoadedPhase6Run:
         harmonic_plan.piece_plan,
         score_id=f"{harmonic_plan.piece_plan.plan_id}-score",
         divisions=harmonic_plan.divisions,
+        timing_contract=harmonic_plan.timing_contract,
         length_units_by_score_unit=harmonic_plan.length_units_by_score_unit,
         harmonies_by_score_unit=loaded_phase5.phase4.phase3.harmonies_by_score_unit,
         directions_by_score_unit={
@@ -112,6 +113,7 @@ def load_complete_phase6_run(run_dir: str | Path) -> LoadedPhase6Run:
         ),
         target_seconds,
         preview_path,
+        timing_contract=harmonic_plan.timing_contract,
     )
     return LoadedPhase6Run(validated_script, loaded_phase5, saved_score, saved_ledger)
 

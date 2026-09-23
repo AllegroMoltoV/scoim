@@ -30,6 +30,7 @@ from .profile_capabilities import (
 from .projection_ledger import ProjectionLedgerEntry, validate_projection_ledger
 from .score_ir import PiecePlan, ScoreSpec, piece_plan_from_json, score_spec_from_json
 from .score_rendering import render_score_performance
+from .score_timing import LEGACY_TIMING, QUANTIZED_TIMING
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,8 +56,13 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     state = _read_object(root / "outputs" / "phase7-state.json")
     run_spec = _read_object(root / "run-spec.json")
     schema_version = run_spec.get("schema_version")
-    if schema_version not in {1, 2}:
+    if schema_version not in {1, 2, 3}:
         raise ValueError("the saved phase-7 schema version is unsupported")
+    timing_contract = QUANTIZED_TIMING if schema_version == 3 else LEGACY_TIMING
+    if schema_version == 3 and run_spec.get("timing_contract") != timing_contract:
+        raise ValueError("the saved phase-7 timing contract does not match its version")
+    if schema_version in {1, 2} and "timing_contract" in run_spec:
+        raise ValueError("old phase-7 versions cannot declare the new timing contract")
     if state.get("outcome") != "complete":
         raise ValueError("phase 8 requires a complete phase-7 state")
     if state.get("target_profile") != "solo_piano_3m_v2":
@@ -138,12 +144,13 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
         plan,
         score,
         built.performance,
-        physical_key_contract=schema_version == 2,
+        physical_key_contract=schema_version >= 2,
+        timing_contract=timing_contract,
     )
     rendered_json = rendered_performance_to_json(
         rendered,
         score,
-        schema_version=cast(int, schema_version),
+        schema_version=2 if schema_version >= 2 else 1,
     )
     saved_rendered = _read_object(root / "outputs" / "rendered-performance.json")
     if sha256_json(saved_rendered) != sha256_json(rendered_json):

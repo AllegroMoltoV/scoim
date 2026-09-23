@@ -16,6 +16,13 @@ from .projection_ledger import (
 )
 from .score_ir import PiecePlan, PlanNode, ScoreHarmony, validate_piece_plan
 from .score_projection import PlanChoice, build_piece_plan
+from .score_timing import (
+    LEGACY_TIMING,
+    MAX_SCORE_UNITS,
+    QUANTIZED_TIMING,
+    allocate_score_units,
+    check_timing_contract,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +50,7 @@ def load_complete_phase3_state(
     if phase3_state.get("outcome") != "complete":
         raise ValueError("phase 4 requires a complete phase-3 state")
     raw_plan = cast(Mapping[str, object], phase3_state["harmonic_plan"])
+    timing_contract = check_timing_contract(raw_plan.get("timing_contract", LEGACY_TIMING))
     raw_piece_plan = cast(Mapping[str, object], raw_plan["piece_plan"])
     piece_plan = PiecePlan(
         plan_id=cast(str, raw_piece_plan["plan_id"]),
@@ -59,6 +67,7 @@ def load_complete_phase3_state(
     expected_plan, _ = build_piece_plan(
         validated_script,
         PlanChoice(piece_plan.tonal_center, piece_plan.mode),
+        timing_contract=timing_contract,
     )
     if piece_plan != expected_plan:
         raise ValueError("the phase-3 piece plan does not match the script")
@@ -81,6 +90,43 @@ def load_complete_phase3_state(
         ProjectionLedgerEntry(**cast(dict[str, object], value))
         for value in cast(list[object], raw_plan["projection_ledger"])
     )
+    total_score_units = None
+    if timing_contract == QUANTIZED_TIMING:
+        divisions = raw_plan["divisions"]
+        if type(divisions) is not int or not 1 <= divisions <= MAX_SCORE_UNITS:
+            raise ValueError("phase-3 divisions must be a positive JSON-safe integer")
+        total_score_units = cast(int, raw_plan["total_score_units"])
+        section_lengths, timing_evidence = allocate_score_units(
+            {
+                node.section_id: cast(float, node.duration_weight)
+                for node in piece_plan.nodes
+                if node.score_unit_id is not None
+            },
+            total_score_units,
+        )
+        expected_lengths = {
+            cast(str, node.score_unit_id): section_lengths[node.section_id]
+            for node in piece_plan.nodes
+            if node.score_unit_id is not None
+        }
+        if length_units != expected_lengths:
+            raise ValueError("phase-3 lengths do not match the saved timing contract")
+        for node in piece_plan.nodes:
+            if node.score_unit_id is None:
+                continue
+            expected = ProjectionLedgerEntry(
+                "plan_node",
+                node.section_id,
+                "score_unit",
+                node.score_unit_id,
+                "harmonic_plan",
+                "quantized_section_boundary",
+                "passed",
+                f"plan_node_id={node.section_id}; score_unit_id={node.score_unit_id}; "
+                f"{timing_evidence[node.section_id]}",
+            )
+            if expected not in local_ledger:
+                raise ValueError("phase-3 quantization evidence does not match the script")
     plan = HarmonicPlan(
         piece_plan=piece_plan,
         overall_harmonic_story=cast(str, raw_plan["overall_harmonic_story"]),
@@ -88,6 +134,8 @@ def load_complete_phase3_state(
         divisions=cast(int, raw_plan["divisions"]),
         length_units_by_score_unit=length_units,
         projection_ledger=local_ledger,
+        timing_contract=timing_contract,
+        total_score_units=total_score_units,
     )
     raw_harmonies = cast(
         Mapping[str, list[dict[str, object]]], phase3_state["harmonies_by_score_unit"]
