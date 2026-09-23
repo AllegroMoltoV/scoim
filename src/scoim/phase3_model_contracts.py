@@ -16,6 +16,7 @@ from .score_generation_context import (
 from .score_ir import PiecePlan, ScoreHarmony
 from .score_projection import PlanChoice, build_piece_plan
 from .score_timing import LEGACY_TIMING, MAX_SCORE_UNITS, QUANTIZED_TIMING, allocate_score_units
+from .section_harmony_context import section_harmony_contexts
 from .validation import IssueCode, ValidationIssue
 
 
@@ -333,6 +334,7 @@ def harmony_prompt(
     *,
     intent_index: int,
     previous_final_harmony: Mapping[str, object] | None,
+    accepted_harmonies_by_score_unit: Mapping[str, tuple[ScoreHarmony, ...]] | None = None,
 ) -> str:
     """Build one bounded harmony request from validated neighboring context."""
     script = cast(dict[str, object], document["script"])
@@ -356,7 +358,9 @@ def harmony_prompt(
     for relation_id, relation in relations.items():
         source = cast(dict[str, object], relation["source"])
         target = cast(dict[str, object], relation["target"])
-        if source["id"] in target_placement_ids or target["id"] in target_placement_ids:
+        if source["type"] == "material_placement" and (
+            source["id"] in target_placement_ids or target["id"] in target_placement_ids
+        ):
             target_relations[relation_id] = relation
     next_intent = (
         plan.section_intents[intent_index + 1].harmonic_intent
@@ -381,6 +385,12 @@ def harmony_prompt(
             "connection_from_previous": target_intent.connection_from_previous,
             "material_placements": target_placements,
             "variation_relations": target_relations,
+            "section_comparison_contexts": section_harmony_contexts(
+                document,
+                target_intent.section_id,
+                length_units_by_score_unit=plan.length_units_by_score_unit,
+                accepted_harmonies_by_score_unit=accepted_harmonies_by_score_unit or {},
+            ),
         },
         "previous_final_harmony": (
             dict(previous_final_harmony) if previous_final_harmony is not None else None
@@ -390,6 +400,7 @@ def harmony_prompt(
     }
     return (
         "対象の楽譜生成単位を完全に覆う共有和声を提案してください。"
+        "区分変奏では比較元の全範囲と保持・変更要求を参照し、子区分を一対一対応に限定しないでください。"
         "IDや開始位置は返さず、指定されたSchemaだけに従ってください。\n\n"
         f"入力: {json.dumps(context, ensure_ascii=False, sort_keys=True)}\n"
     )

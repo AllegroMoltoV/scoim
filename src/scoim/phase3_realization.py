@@ -46,6 +46,7 @@ from .proposal import ProposalRunner, preflight_runner
 from .score_generation_context import GENERATION_CONTEXT_CONTRACT
 from .score_ir import ScoreHarmony
 from .score_timing import MAX_SCORE_UNITS, QUANTIZED_TIMING, ScoreCapacityError
+from .section_harmony_context import section_harmony_contexts
 from .validation import IssueCode, ValidationIssue
 
 
@@ -215,6 +216,7 @@ def realize_phase3(
                 plan,
                 intent_index=intent_index,
                 previous_final_harmony=previous,
+                accepted_harmonies_by_score_unit=harmonies_by_score_unit,
             ),
             schema=harmony_response_schema(),
             immutable_input={
@@ -223,6 +225,14 @@ def realize_phase3(
                 "length_units": length_units,
                 "previous_final_harmony": previous,
                 "required_final_tonic": required_final_tonic,
+                "section_comparison_contexts_sha256": sha256_json(
+                    section_harmony_contexts(
+                        request.validated_script,
+                        intent.section_id,
+                        length_units_by_score_unit=plan.length_units_by_score_unit,
+                        accepted_harmonies_by_score_unit=harmonies_by_score_unit,
+                    )
+                ),
             },
             runner=runner,
             validate_content=partial(

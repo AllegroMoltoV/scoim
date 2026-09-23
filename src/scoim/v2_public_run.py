@@ -89,7 +89,7 @@ def _request_record(request: PublicV2RunRequest) -> dict[str, object]:
     ):
         raise ValueError("public v2 identifiers must not be empty")
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "timing_contract": QUANTIZED_TIMING,
         "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
         "operation": "scoim-public-v2-realization",

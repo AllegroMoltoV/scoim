@@ -1,7 +1,9 @@
 [
   {
     "materials": [
-      {"description": "短い主題。"}
+      {
+        "description": "短い主題。"
+      }
     ],
     "scenes": [
       {
@@ -13,7 +15,10 @@
             "description": "主題を示す。",
             "relative_length": 1,
             "placements": [
-              {"material_index": 0, "role": "foreground"}
+              {
+                "material_index": 0,
+                "role": "foreground"
+              }
             ]
           }
         ]
@@ -40,12 +45,26 @@
   },
   {
     "harmonies": [
-      {"duration_units": 12, "root_pitch_class": 0, "quality": "major"}
+      {
+        "duration_units": 12,
+        "root_pitch_class": 0,
+        "quality": "major"
+      }
     ]
   },
   {
-    "notes": [
-      {"at_units": 0, "duration_units": 12, "pitch": 72, "voice": "upper"}
-    ]
+    "foregrounds": [
+      {
+        "notes": [
+          {
+            "at_units": 0,
+            "duration_units": 12,
+            "pitch": 72,
+            "voice": "upper"
+          }
+        ]
+      }
+    ],
+    "accompaniments": []
   }
 ]

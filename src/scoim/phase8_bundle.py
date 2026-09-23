@@ -21,17 +21,19 @@ from llm_musical_composer.run_state import (
 
 from .finite_model_operation import check_finite_model_operation_records
 from .phase7_state import load_complete_phase7_run
-from .score_generation_context import require_current_generation_context
+from .score_generation_context import SECTION_RANGE_CONTEXT_V1
 from .score_rendering import (
     check_rendered_performance_smf,
     check_score_musicxml,
     write_rendered_performance_smf,
     write_score_musicxml,
 )
+from .score_state import load_complete_score_run
 from .score_timing import QUANTIZED_TIMING
 from .validation import CheckResult, IssueCode, ValidationIssue
 
 _PHASE_NAMES = ("phase3", "phase4", "phase5", "phase6", "phase7")
+_SCORE_PHASE_NAMES = ("phase3", "score", "phase7")
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,10 +72,10 @@ def create_phase8_bundle(
     target = Path(destination).resolve()
     if target.exists():
         return _bundle_failure(IssueCode.STORAGE_CONFLICT, "bundle already exists", target)
-    if set(request.phase_run_dirs) != set(_PHASE_NAMES[:-1]):
+    if set(request.phase_run_dirs) != set(_SCORE_PHASE_NAMES[:-1]):
         return _bundle_failure(
             IssueCode.SEMANTIC_INVALID,
-            "phase 3 through phase 6 run directories are required",
+            "phase 3 and score run directories are required",
             target,
         )
     if not isinstance(request.composition_manifest, bytes):
@@ -124,13 +126,12 @@ def create_phase8_bundle(
     if loaded.phase7_schema_version != 3:
         return _bundle_failure(
             IssueCode.LINEAGE_MISMATCH,
-            "a schema-version-4 bundle requires phase-7 schema version 3",
+            "a schema-version-5 bundle requires phase-7 schema version 3",
             target,
         )
 
     try:
-        _require_current_timing_lineage(phase_dirs)
-        _require_current_generation_context_lineage(phase_dirs)
+        _require_score_lineage(phase_dirs)
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.LINEAGE_MISMATCH, str(error), target)
 
@@ -141,7 +142,7 @@ def create_phase8_bundle(
         bundle.mkdir()
         model_runs = bundle / "model-runs"
         model_runs.mkdir()
-        for phase_name in _PHASE_NAMES:
+        for phase_name in _SCORE_PHASE_NAMES:
             shutil.copytree(phase_dirs[phase_name], model_runs / phase_name)
 
         inputs = bundle / "inputs"
@@ -189,7 +190,7 @@ def create_phase8_bundle(
         }
         manifest = {
             "bundle_type": "scoim-generation-trial",
-            "schema_version": 4,
+            "schema_version": 5,
             "target_profile": "solo_piano_3m_v2",
             "composition_id": request.composition_id,
             "trial_id": request.trial_id,
@@ -259,7 +260,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         schema_version = manifest.get("schema_version")
         if (
             manifest.get("bundle_type") != "scoim-generation-trial"
-            or schema_version not in {1, 2, 3, 4}
+            or schema_version not in {1, 2, 3, 4, 5}
             or manifest.get("target_profile") != "solo_piano_3m_v2"
         ):
             raise ValueError("bundle identity is invalid")
@@ -277,7 +278,8 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         loaded = load_complete_phase7_run(bundle / "model-runs" / "phase7")
         if schema_version == 3 and loaded.phase7_schema_version != 2:
             raise ValueError("a schema-version-3 bundle requires phase-7 schema version 2")
-        for phase_name in _PHASE_NAMES:
+        phase_names = _SCORE_PHASE_NAMES if schema_version == 5 else _PHASE_NAMES
+        for phase_name in phase_names:
             operation_records = check_finite_model_operation_records(
                 bundle / "model-runs" / phase_name
             )
@@ -301,9 +303,15 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             _require_current_timing_lineage(
                 {name: bundle / "model-runs" / name for name in _PHASE_NAMES}
             )
+        if schema_version == 5:
+            if loaded.phase7_schema_version != 3:
+                raise ValueError("bundle v5 requires phase7 v3")
+            _require_score_lineage(
+                {name: bundle / "model-runs" / name for name in _SCORE_PHASE_NAMES}
+            )
         if schema_version in {1, 2} and loaded.phase7_schema_version == 3:
             raise ValueError("old bundles cannot contain the current timing contract")
-        if schema_version in {2, 3, 4}:
+        if schema_version in {2, 3, 4, 5}:
             composition_id = manifest.get("composition_id")
             trial_id = manifest.get("trial_id")
             composition_manifest_bytes = (
@@ -334,17 +342,30 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
     return ()
 
 
-def _require_current_generation_context_lineage(phase_dirs: Mapping[str, Path]) -> None:
-    for phase in ("phase3", "phase7"):
+def _require_score_lineage(phase_dirs: Mapping[str, Path]) -> None:
+    score = load_complete_score_run(phase_dirs["score"])
+    phase7 = load_complete_phase7_run(phase_dirs["phase7"])
+    for phase in _SCORE_PHASE_NAMES:
         spec = _read_object(phase_dirs[phase] / "run-spec.json")
-        require_current_generation_context(spec.get("generation_context_contract"))
-    states = [phase_dirs["phase3"] / "outputs" / "phase3-state.json"]
-    states.extend(
-        phase_dirs[name] / "inputs" / "phase3-state.json" for name in ("phase4", "phase5", "phase6")
+        if spec.get("generation_context_contract") != SECTION_RANGE_CONTEXT_V1:
+            raise ValueError("bundle v5 requires its section-range context contract")
+        if spec.get("timing_contract") != QUANTIZED_TIMING:
+            raise ValueError("bundle v5 requires the quantized timing contract")
+    links = (
+        ("phase3", "outputs/phase3-state.json", "score", "inputs/phase3-state.json"),
+        ("phase3", "outputs/projection-ledger.json", "score", "inputs/projection-ledger.json"),
+        ("phase3", "inputs/validated-script.json", "score", "inputs/validated-script.json"),
+        ("score", "outputs/score-spec.json", "phase7", "inputs/score-spec.json"),
+        ("score", "outputs/projection-ledger.json", "phase7", "inputs/projection-ledger.json"),
+        ("score", "inputs/validated-script.json", "phase7", "inputs/validated-script.json"),
     )
-    for path in states:
-        plan = cast(Mapping[str, object], _read_object(path)["harmonic_plan"])
-        require_current_generation_context(plan.get("generation_context_contract"))
+    for source, source_path, target, target_path in links:
+        source_json = json.loads((phase_dirs[source] / source_path).read_text(encoding="utf-8"))
+        target_json = json.loads((phase_dirs[target] / target_path).read_text(encoding="utf-8"))
+        if source_json != target_json:
+            raise ValueError(f"bundle score lineage differs: {source_path} -> {target_path}")
+    if score.score != phase7.score or score.phase3.plan.piece_plan != phase7.plan:
+        raise ValueError("bundle score and performance inputs differ")
 
 
 def _require_current_timing_lineage(phase_dirs: Mapping[str, Path]) -> None:

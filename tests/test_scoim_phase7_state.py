@@ -2,8 +2,8 @@ import json
 
 import pytest
 from test_scoim_phase3_realization import SequencedRunner
-from test_scoim_phase6_state import _phase6_run
 from test_scoim_phase7_realization import _response
+from test_scoim_score_realization import _score_run
 
 from llm_musical_composer.run_state import sha256_json
 from scoim.performance_ir import PerformanceSpec, SectionPerformance, rendered_performance_to_json
@@ -14,7 +14,7 @@ from scoim.score_rendering import render_score_performance
 
 
 def _phase7_run(tmp_path):
-    phase6_dir = _phase6_run(tmp_path)
+    phase6_dir = _score_run(tmp_path)
     phase7_dir = tmp_path / "phase7"
     result = realize_phase7(Phase7Request(phase6_dir), SequencedRunner([_response()]), phase7_dir)
     assert result.realized

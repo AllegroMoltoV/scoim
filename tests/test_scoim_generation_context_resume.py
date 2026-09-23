@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 from test_scoim_phase3_realization import SequencedRunner, _document, _phase2_ledger, _responses
-from test_scoim_phase6_state import _phase6_run
 from test_scoim_phase7_realization import _response as _performance_response
+from test_scoim_score_realization import _score_run
 
 from llm_musical_composer.run_state import StateConflictError
 from scoim.phase3_realization import Phase3Request, realize_phase3
@@ -77,7 +77,7 @@ def test_phase3_current_context_resume_reuses_all_accepted_responses(
 def test_phase7_rejects_legacy_run_even_with_identical_current_upstream_values(
     tmp_path: Path, accepted: bool
 ) -> None:
-    phase6_dir = _phase6_run(tmp_path)
+    phase6_dir = _score_run(tmp_path)
     run_dir = tmp_path / "phase7"
     generated = realize_phase7(
         Phase7Request(phase6_dir), SequencedRunner([_performance_response()]), run_dir
@@ -129,7 +129,10 @@ def test_later_generation_rejects_genuine_legacy_context_upstream(
 
     assert not result.realized
     assert result.outcome == "request_invalid"
-    assert "generation context contract" in result.issues[0].message
+    if phase != 7:
+        assert "generation context contract" in result.issues[0].message
+    else:
+        assert "score-state.json" in result.issues[0].message
     assert runner.prompts == []
     assert not destination.exists()
 
@@ -153,5 +156,5 @@ def test_new_bundle_creation_rejects_genuine_legacy_context_runs(
     )
 
     assert not result.created
-    assert "generation context contract" in result.issues[0].message
+    assert "phase 3 and score run directories" in result.issues[0].message
     assert not destination.exists()

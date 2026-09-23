@@ -14,7 +14,7 @@ from .profile_capabilities import (
     check_generation_profile_document,
 )
 from .projection_ledger import ProjectionLedgerEntry, validate_projection_ledger
-from .score_operation_preflight import build_score_operation_plan
+from .score_work_plan import build_score_work_plan
 from .script_0_3_model_contracts import (
     IndexedStructureResult,
     ScriptBuildResult,
@@ -504,7 +504,7 @@ def build_script_document(
     profile_checked = check_generation_profile_document(document, capabilities)
     if not profile_checked.valid:
         return ScriptBuildResult(False, "content_invalid", None, (), profile_checked.issues)
-    operation_plan = build_score_operation_plan(document, capabilities)
+    operation_plan = build_score_work_plan(document, capabilities)
     if operation_plan.issues:
         return ScriptBuildResult(False, "content_invalid", None, (), operation_plan.issues)
     ledger = _build_projection_ledger(approved_flow, indexed_structure, document)

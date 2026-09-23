@@ -182,7 +182,7 @@ def test_tiny_ratio_difference_survives_phase3_to_bundle_replay_with_saved_hashe
         sections[section_id]["relative_length"] = weight
     fixture = tmp_path / "tiny-ratio-script.json"
     fixture.write_text(json.dumps(document), encoding="utf-8")
-    monkeypatch.setattr("test_scoim_phase5_realization._FIXTURE", fixture)
+    monkeypatch.setattr("test_scoim_phase4_realization._FIXTURE", fixture)
 
     phase7_dir = _phase7_run(tmp_path)
     saved_plan = json.loads(
@@ -194,7 +194,7 @@ def test_tiny_ratio_difference_survives_phase3_to_bundle_replay_with_saved_hashe
     bundle_dir = tmp_path / "bundle"
     request = Phase8BundleRequest(
         phase7_run_dir=phase7_dir,
-        phase_run_dirs={f"phase{phase}": tmp_path / f"phase{phase}" for phase in range(3, 7)},
+        phase_run_dirs={"phase3": tmp_path / "phase3", "score": tmp_path / "score"},
         composition_id="composition-001",
         trial_id="trial-001",
         composition_manifest=json.dumps(

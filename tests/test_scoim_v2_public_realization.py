@@ -66,7 +66,12 @@ def _generation_responses() -> list[dict[str, object]]:
             ],
         },
         {"harmonies": [{"duration_units": 12, "root_pitch_class": 0, "quality": "major"}]},
-        {"notes": [{"at_units": 0, "duration_units": 12, "pitch": 72, "voice": "upper"}]},
+        {
+            "foregrounds": [
+                {"notes": [{"at_units": 0, "duration_units": 12, "pitch": 72, "voice": "upper"}]}
+            ],
+            "accompaniments": [],
+        },
     ]
 
 
@@ -91,6 +96,34 @@ def _composition_bundle(tmp_path: Path) -> Path:
     return composition
 
 
+def test_saved_composition_is_preflighted_before_any_harmony_model_call(tmp_path):
+    from dataclasses import asdict
+
+    from test_scoim_phase4_realization import _document, _phase2_ledger
+
+    from scoim.v2_public_realization import _realize_phases
+
+    document = _document()
+    document["script"]["script_element_variation_relations"]["theme-varied"]["target"] = {
+        "type": "material_placement",
+        "id": "support-return",
+    }
+    composition = tmp_path / "saved-composition"
+    composition.mkdir()
+    (composition / "validated-script.json").write_text(json.dumps(document), encoding="utf-8")
+    (composition / "projection-ledger.json").write_text(
+        json.dumps([asdict(entry) for entry in _phase2_ledger(document)]), encoding="utf-8"
+    )
+    runner = PublicV2Runner([])
+    issues = _realize_phases(
+        composition, tmp_path / "work", tmp_path / "trial", runner, "composition-001", "trial-001"
+    )
+    assert issues
+    assert issues[0].code is IssueCode.UNREPRESENTABLE
+    assert runner.calls == 0
+    assert not (tmp_path / "work/phase3").exists()
+
+
 def test_public_realize_runs_v2_composition_through_the_final_artifacts(
     tmp_path: Path,
 ) -> None:
@@ -109,8 +142,8 @@ def test_public_realize_runs_v2_composition_through_the_final_artifacts(
     assert result.input_kind == "composition"
     assert result.trial_bundle_path == Path("trial")
     assert result.artifacts == {
-        "phase_04_foreground": "realization-work/phase4/outputs/foreground-preview.mid",
-        "phase_06_score": "realization-work/phase6/outputs/score-preview.mid",
+        "phase_04_foreground": "realization-work/score/outputs/foreground-preview.mid",
+        "phase_06_score": "realization-work/score/outputs/score-preview.mid",
         "final_musicxml": "trial/artifacts/score.musicxml",
         "final_smf": "trial/artifacts/final.mid",
     }
@@ -191,7 +224,7 @@ def test_public_v2_realization_rejects_a_completed_phase_with_broken_model_recor
     )
     assert first.succeeded is True, first.issues
     validation_path = next(
-        (output / "realization-work" / "phase4" / "attempts").glob("*/attempt-*/validation.json")
+        (output / "realization-work" / "score" / "attempts").glob("*/attempt-*/validation.json")
     )
     validation_path.unlink()
     resumed_runner = PublicV2Runner([])

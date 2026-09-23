@@ -113,7 +113,7 @@ def execute_finite_model_operation(
     validate_content: ContentValidator,
 ) -> FiniteModelOperationResult:
     """Run one typed operation and accept only a schema- and content-valid response."""
-    accepted = _read_accepted_response(
+    accepted = read_accepted_model_operation(
         store,
         operation_id,
         prompt,
@@ -378,7 +378,7 @@ def _lineage_issue(root: Path, path: Path, message: str) -> ValidationIssue:
     )
 
 
-def _read_accepted_response(
+def read_accepted_model_operation(
     store: RunStore,
     operation_id: str,
     prompt: str,
@@ -386,6 +386,7 @@ def _read_accepted_response(
     immutable_input: Mapping[str, object],
     validate_content: ContentValidator,
 ) -> FiniteModelOperationResult | None:
+    """Read and revalidate an accepted operation without writing or model access."""
     path = store.run_dir / "events" / operation_id / "accepted.json"
     if not path.is_file():
         return None

@@ -10,7 +10,6 @@ from typing import cast
 from llm_musical_composer.run_state import RunStore, sha256_json
 
 from .finite_model_operation import execute_finite_model_operation
-from .phase6_state import load_complete_phase6_run
 from .phase7_performance_contracts import (
     build_performance_choice_operations,
     build_performance_choices,
@@ -29,13 +28,14 @@ from .score_generation_context import (
     require_current_generation_context,
 )
 from .score_rendering import ScoreRenderingError, render_score_performance
+from .score_state import load_complete_score_run
 from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
 
 @dataclass(frozen=True, slots=True)
 class Phase7Request:
-    phase6_run_dir: str | Path
+    score_run_dir: str | Path
     target_profile: str = "solo_piano_3m_v2"
 
 
@@ -53,7 +53,7 @@ def realize_phase7(
     runner: ProposalRunner,
     run_dir: str | Path,
 ) -> Phase7RealizationResult:
-    """Choose finite performance methods and render the checked phase-6 score."""
+    """Choose finite performance methods and render the checked complete score."""
     if request.target_profile != "solo_piano_3m_v2":
         issue = ValidationIssue(
             IssueCode.UNSUPPORTED_PROFILE,
@@ -62,14 +62,12 @@ def realize_phase7(
         )
         return Phase7RealizationResult(False, "request_invalid", None, None, (issue,))
     try:
-        loaded = load_complete_phase6_run(request.phase6_run_dir)
+        loaded = load_complete_score_run(request.score_run_dir)
         document = loaded.validated_script
-        require_current_generation_context(
-            loaded.phase5.phase4.phase3.plan.generation_context_contract
-        )
-        if loaded.phase5.phase4.phase3.plan.timing_contract != QUANTIZED_TIMING:
+        require_current_generation_context(loaded.phase3.plan.generation_context_contract)
+        if loaded.phase3.plan.timing_contract != QUANTIZED_TIMING:
             raise ValueError("new phase 7 requires the current timing contract; start a new trial")
-        plan = loaded.phase5.phase4.phase3.plan.piece_plan
+        plan = loaded.phase3.plan.piece_plan
         score = loaded.score
         capabilities = solo_piano_3m_v2_capabilities()
         operations = build_performance_choice_operations(document, plan)

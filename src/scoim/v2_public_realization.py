@@ -12,18 +12,15 @@ from llm_musical_composer.run_state import StateConflictError, sha256_file, sha2
 from .finite_model_operation import check_finite_model_operation_records
 from .phase3_realization import Phase3Request, realize_phase3
 from .phase3_state import load_complete_phase3_state
-from .phase4_realization import Phase4Request, realize_phase4
-from .phase4_state import load_complete_phase4_state
-from .phase5_realization import Phase5Request, realize_phase5
-from .phase5_state import load_complete_phase5_state
-from .phase6_realization import Phase6Request, realize_phase6
-from .phase6_state import load_complete_phase6_run
 from .phase7_realization import Phase7Request, realize_phase7
 from .phase7_state import load_complete_phase7_run
 from .phase8_bundle import Phase8BundleRequest, create_phase8_bundle, verify_phase8_bundle
 from .projection_ledger import ProjectionLedgerEntry
 from .proposal import ProposalRunner
 from .runner_identity import IdentityCheckingRunner, read_runner_identity
+from .score_realization import ScoreRequest, realize_score
+from .score_state import load_complete_score_run
+from .score_work_plan import build_score_work_plan
 from .script_0_4_compilation import Script04CompilationRequest, compile_script_0_4
 from .v2_composition_bundle import (
     create_v2_composition_bundle,
@@ -221,6 +218,9 @@ def _realize_phases(
 ) -> tuple[ValidationIssue, ...] | None:
     document = _read_object(composition / "validated-script.json")
     ledger = _read_ledger(composition / "projection-ledger.json")
+    work_plan = build_score_work_plan(document)
+    if work_plan.issues:
+        return work_plan.issues
     phase3_dir = work / "phase3"
     if not _is_complete(phase3_dir):
         phase3 = realize_phase3(Phase3Request(document, ledger), runner, phase3_dir)
@@ -233,46 +233,18 @@ def _realize_phases(
     ledger = _read_ledger(phase3_dir / "outputs" / "projection-ledger.json")
     load_complete_phase3_state(document, phase3_state, ledger)
 
-    phase4_dir = work / "phase4"
-    if not _is_complete(phase4_dir):
-        phase4 = realize_phase4(Phase4Request(document, phase3_state, ledger), runner, phase4_dir)
-        if not phase4.realized:
-            return phase4.issues
-    phase4_record_issues = _model_record_issues(phase4_dir, "phase4")
-    if phase4_record_issues:
-        return phase4_record_issues
-    phase4_state = _read_object(phase4_dir / "outputs" / "phase4-state.json")
-    ledger = _read_ledger(phase4_dir / "outputs" / "projection-ledger.json")
-    load_complete_phase4_state(document, phase3_state, phase4_state, ledger)
-
-    phase5_dir = work / "phase5"
-    if not _is_complete(phase5_dir):
-        phase5 = realize_phase5(
-            Phase5Request(document, phase3_state, phase4_state, ledger), runner, phase5_dir
-        )
-        if not phase5.realized:
-            return phase5.issues
-    phase5_record_issues = _model_record_issues(phase5_dir, "phase5")
-    if phase5_record_issues:
-        return phase5_record_issues
-    phase5_state = _read_object(phase5_dir / "outputs" / "phase5-state.json")
-    ledger = _read_ledger(phase5_dir / "outputs" / "projection-ledger.json")
-    load_complete_phase5_state(document, phase3_state, phase4_state, phase5_state, ledger)
-
-    phase6_dir = work / "phase6"
-    if phase6_dir.exists():
-        load_complete_phase6_run(phase6_dir)
-    else:
-        phase6 = realize_phase6(
-            Phase6Request(document, phase3_state, phase4_state, phase5_state, ledger),
-            phase6_dir,
-        )
-        if not phase6.realized:
-            return phase6.issues
+    score_dir = work / "score"
+    score_record_issues = _model_record_issues(score_dir, "score")
+    if score_record_issues:
+        return score_record_issues
+    score_result = realize_score(ScoreRequest(document, phase3_state, ledger), runner, score_dir)
+    if not score_result.realized:
+        return score_result.issues
+    load_complete_score_run(score_dir)
 
     phase7_dir = work / "phase7"
     if not _is_complete(phase7_dir):
-        phase7 = realize_phase7(Phase7Request(phase6_dir), runner, phase7_dir)
+        phase7 = realize_phase7(Phase7Request(score_dir), runner, phase7_dir)
         if not phase7.realized:
             return phase7.issues
     load_complete_phase7_run(phase7_dir)
@@ -285,9 +257,7 @@ def _realize_phases(
             phase7_run_dir=phase7_dir,
             phase_run_dirs={
                 "phase3": phase3_dir,
-                "phase4": phase4_dir,
-                "phase5": phase5_dir,
-                "phase6": phase6_dir,
+                "score": score_dir,
             },
             composition_id=composition_id,
             trial_id=trial_id,
@@ -300,8 +270,8 @@ def _realize_phases(
 
 def _artifacts(output: Path) -> dict[str, str]:
     candidates = {
-        "phase_04_foreground": "realization-work/phase4/outputs/foreground-preview.mid",
-        "phase_06_score": "realization-work/phase6/outputs/score-preview.mid",
+        "phase_04_foreground": "realization-work/score/outputs/foreground-preview.mid",
+        "phase_06_score": "realization-work/score/outputs/score-preview.mid",
         "final_musicxml": "trial/artifacts/score.musicxml",
         "final_smf": "trial/artifacts/final.mid",
     }

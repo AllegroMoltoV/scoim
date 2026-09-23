@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
-GENERATION_CONTEXT_CONTRACT = "section-path-context-v1"
+SECTION_RANGE_CONTEXT_V1 = "section-range-context-v1"
+GENERATION_CONTEXT_CONTRACT = SECTION_RANGE_CONTEXT_V1
 
 
 def require_current_generation_context(value: object) -> None:

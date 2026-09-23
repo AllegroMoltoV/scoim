@@ -1,0 +1,35 @@
+{
+  "absolute_path_file_matches": [],
+  "archive_file": "bundle.zip",
+  "archive_file_count": 187,
+  "archive_sha256": "d89412465763d3089bea3f14a410a144c093a70637dc2f6056cfbdd04c412e45",
+  "artifact_sha256": {
+    "artifacts/final.mid": "6cfb049378621c7e3bd348a6556f7a0667819bcc92bab8026def0b30e7976400",
+    "artifacts/score.musicxml": "5bfce28c2222564f7b0bb48f8a3ac50ce5c3564214731d9a9776f74fbf884a81"
+  },
+  "bundle_schema_version": 4,
+  "construction": "Unmodified current phase3-phase8 implementation and existing fixed test runners; legal section bridge-to-release relation added before generation; no external model calls.",
+  "fixture_manifest_sha256": "6b948bb00a508cfd21729ff7ee54b837e8df9da8cfe57859136594f40c94ab1c",
+  "fixture_version": 1,
+  "generation_context_contract": "section-path-context-v1",
+  "lineage_limit": "Uses the minimal composition manifest accepted by the existing phase8 test. No phase2 or complete composition bundle was generated.",
+  "phase4_operation_order": [
+    "foreground-theme-first",
+    "foreground-theme-return",
+    "foreground-ending-only",
+    "foreground-bridge-only"
+  ],
+  "replay_byte_equality": true,
+  "sanitization": {
+    "checks.json": {
+      "/musicxml/path": "artifacts/score.musicxml",
+      "/smf/path": "artifacts/final.mid"
+    },
+    "manifest.json": "Updated only the checks.json hash after replacing the two diagnostic paths."
+  },
+  "source_archive_sha256": "b9b4cb5225b73f2e36b67e29cddc44e56a74c611f95d1ab4d085e6450eac14d1",
+  "source_commit": "2e56cd7",
+  "source_hash_inventory_sha256": "83ef41de6dc6560257ff83e9987f6b11cab4f14252ce94b480374f630ea329ec",
+  "source_manifest_sha256": "a2bef410af7a6ac4880b909c693f27a5bdc27446822ddd92669958edfb8eb497",
+  "source_script_sha256": "175cd7f57636c41084e068004b3786224073cc2f862fdbec9b7068a1d3970e64"
+}

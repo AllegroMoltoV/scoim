@@ -58,11 +58,11 @@ scoim realize INPUT --output OUTPUT [--model MODEL] [--trial-id ID]
 
 生成試行bundleの再生では、bundleのmanifestから版を判定する。モデル、試行ID、構成ID、生成profileを受け取らず、外部通信を行わない。したがって、CLIの既定profileが変わっても、既知のv1生成試行bundleをprofile指定なしで再生できる。旧`--frozen-response`と`--run-dir`は公開CLIへ戻さない。
 
-`OUTPUT`は一回の公開処理の出力ルートである。承認済み楽曲台本からv2生成を始める場合は`public-run.json`、`composition`、`realization-work/phase2`から`phase7`、`trial`を作る。v2構成bundleから始める場合は`public-run.json`、`realization-work/phase3`から`phase7`、`trial`を作る。生成試行bundleを再生する場合は`artifacts`を作る。失敗時も、開始済みのモデル要求、応答、検査、確定済みの上流bundleを残す。
+`OUTPUT`は一回の公開処理の出力ルートである。承認済み楽曲台本からv2生成を始める場合は`public-run.json`、`composition`、`realization-work/phase2`、`realization-work/phase3`、`realization-work/score`、`realization-work/phase7`、`trial`を作る。v2構成bundleから始める場合は`public-run.json`、`realization-work/phase3`、`realization-work/score`、`realization-work/phase7`、`trial`を作る。生成試行bundleを再生する場合は`artifacts`を作る。失敗時も、開始済みのモデル要求、応答、検査、確定済みの上流bundleを残す。
 
 新しいv2生成で既存`OUTPUT`を受け入れるのは、`public-run.json`があり、入力内容hash、入力種類、生成profile、構成ID、試行ID、[モデル実行条件](glossary.md#モデル実行条件)、時間契約、生成文脈契約が今回の要求と一致する場合だけである。同じ時間契約と生成文脈契約の検証済み完成工程を再利用し、最初の未完成工程から再開する。識別記録がない、要求、時間契約、生成文脈契約が異なる、保存物が改変されている、モデル呼び出しの終了状態が不明である、のいずれかでは続行しない。v1生成とbundle再生の出力先には既存directoryを指定できない。
 
-新規v2生成では、時間契約`quantized-score-v1`と生成文脈契約`section-path-context-v1`を使う。どちらかの契約が異なる旧途中runを続行せず、保存済み構成bundleを`INPUT`に指定し、新しい`OUTPUT`と`--trial-id`で実現試行を始める。旧完成フェーズを新しい後続フェーズへ混在させない。旧完成bundleの通信なし再生では、保存時の規則と成果物を維持する。時間契約の保存・照合は[生成ランタイム](solo-piano-generation-runtime.md#保存と再開)に従う。
+新規v2生成では、時間契約`quantized-score-v1`と生成文脈契約`section-range-context-v1`を使う。どちらかの契約が異なる旧途中runを続行せず、保存済み構成bundleを`INPUT`に指定し、新しい`OUTPUT`と`--trial-id`で実現試行を始める。旧完成フェーズを新しい後続フェーズへ混在させない。旧完成bundleの通信なし再生では、保存時の規則と成果物を維持する。時間契約の保存・照合は[生成ランタイム](solo-piano-generation-runtime.md#保存と再開)に従う。
 
 v2の新規`OUTPUT`は、一時的な兄弟directoryへ`public-run.json`を書いて検査し、directory単位で確定配置してからモデルを呼ぶ。`OUTPUT`だけを作成して識別記録がない状態を、通常の中断結果として残さない。
 
@@ -70,9 +70,9 @@ v2の新規`OUTPUT`は、一時的な兄弟directoryへ`public-run.json`を書�
 
 モデル生成と通信なし再生は、成功可否、判定した入力種類、構成bundle、実現試行bundle、再生先、成果物の相対path、型付き問題を同じ結果型で返す。相対pathの基準は`OUTPUT`とする。
 
-`realize`は、最終SMFに加えて、生成できたフェーズ4と6の診断用SMFの相対pathを結果へ含める。診断用SMFを作るための公開操作は増やさない。通常は最終SMFだけを提示し、利用者が問題の原因を調べる場合に限って診断用SMFを案内する。
+`realize`は、最終SMFに加えて、`score`段階で生成できた前景のみと全楽譜の診断用SMFの相対pathを結果へ含める。診断artifactキーを維持し、保存先を`score`段階へ対応付ける。診断用SMFを作るための公開操作は増やさない。通常は最終SMFだけを提示し、利用者が問題の原因を調べる場合に限って診断用SMFを案内する。
 
-新しい構成bundleと生成試行bundleは、manifestへbundle種類、Schema版、対象profileを明記する。v2構成bundleは、承認済み楽曲台本、`script-0.4.0`の検証済み楽曲設計データ、投影台帳、フェーズ2記録を持つ。v2生成試行bundleは、試行ID、構成ID、検証済み楽曲設計データ、元の構成manifestのbytesとそのSHA-256を持つ。生成時は元の構成bundle全体を検証し、通信なし再生時は複写した構成manifestのbytesからSHA-256を再計算する。元の構成bundleがない通信なし再生では、元bundle内の全ファイルまで再検証したとは扱わない。
+新しい構成bundleと生成試行bundleは、manifestへbundle種類、Schema版、対象profileを明記する。v2構成bundleは、承認済み楽曲台本、`script-0.4.0`の検証済み楽曲設計データ、投影台帳、フェーズ2記録を持つ。新しいv2生成試行bundleのSchema版は5であり、`phase3`、`score`、`phase7`の実行記録を持つ。試行ID、構成ID、検証済み楽曲設計データ、元の構成manifestのbytesとそのSHA-256を保存する。旧版1〜4の完成bundleを保存時の規則で再生し、旧途中runを新しい経路へ混在させない。生成時は元の構成bundle全体を検証し、通信なし再生時は複写した構成manifestのbytesからSHA-256を再計算する。元の構成bundleがない通信なし再生では、元bundle内の全ファイルまで再検証したとは扱わない。
 
 既存の種類fieldを持たない生成試行bundleは、既知の旧Schema版としてだけ通信なし再生できる。未知の版をfield構成から推測して受け入れない。v1の型や保存物をv2として読み替えない。
 
