@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import ClassVar
+from unittest.mock import patch
 
 import mido
 
@@ -136,18 +137,19 @@ def main() -> int:
 
     FixedCodexRunner.responses = json.loads(arguments.v2_responses.read_text(encoding="utf-8"))
     v2_generated_root = arguments.output / "v2-generated"
-    v2_realized = _run_cli(
-        [
-            "realize",
-            str(arguments.v2_flow),
-            "--model",
-            "fixed-model",
-            "--trial-id",
-            "installed-public-v2-smoke",
-            "--output",
-            str(v2_generated_root),
-        ]
-    )
+    with patch("scoim.phase3_realization.secrets.randbelow", return_value=0):
+        v2_realized = _run_cli(
+            [
+                "realize",
+                str(arguments.v2_flow),
+                "--model",
+                "fixed-model",
+                "--trial-id",
+                "installed-public-v2-smoke",
+                "--output",
+                str(v2_generated_root),
+            ]
+        )
     v2_replay_root = arguments.output / "v2-replayed"
     v2_replayed = _run_cli(
         ["realize", str(v2_generated_root / "trial"), "--output", str(v2_replay_root)]

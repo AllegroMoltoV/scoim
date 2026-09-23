@@ -289,26 +289,10 @@ def test_phase3_resume_reuses_the_saved_tonal_center(
         Phase3Request(document, _phase2_ledger(document)),
         SequencedRunner(
             [
-                {
-                    "harmonies": [
-                        {"duration_units": 48, "root_pitch_class": 5, "quality": "major"}
-                    ]
-                },
-                {
-                    "harmonies": [
-                        {"duration_units": 12, "root_pitch_class": 0, "quality": "major"}
-                    ]
-                },
-                {
-                    "harmonies": [
-                        {"duration_units": 48, "root_pitch_class": 10, "quality": "major"}
-                    ]
-                },
-                {
-                    "harmonies": [
-                        {"duration_units": 12, "root_pitch_class": 5, "quality": "major"}
-                    ]
-                },
+                {"harmonies": [{"duration_units": 48, "root_pitch_class": 5, "quality": "major"}]},
+                {"harmonies": [{"duration_units": 12, "root_pitch_class": 0, "quality": "major"}]},
+                {"harmonies": [{"duration_units": 48, "root_pitch_class": 10, "quality": "major"}]},
+                {"harmonies": [{"duration_units": 12, "root_pitch_class": 5, "quality": "major"}]},
             ]
         ),
         run_dir,

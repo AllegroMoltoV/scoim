@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from scoim.phase3_realization import Phase3Request, realize_phase3
 from scoim.phase4_realization import Phase4Request, realize_phase4
@@ -89,7 +90,6 @@ def _upstream(tmp_path: Path) -> tuple[dict[str, object], dict[str, object], lis
     phase3_dir = tmp_path / "phase3"
     phase3_responses = [
         {
-            "tonal_center": 0,
             "mode": "major",
             "overall_harmonic_story": "主調から少し離れて戻る。",
             "section_harmonic_intents": [
@@ -104,11 +104,12 @@ def _upstream(tmp_path: Path) -> tuple[dict[str, object], dict[str, object], lis
         {"harmonies": [{"duration_units": 48, "root_pitch_class": 5, "quality": "major"}]},
         {"harmonies": [{"duration_units": 12, "root_pitch_class": 0, "quality": "major"}]},
     ]
-    phase3 = realize_phase3(
-        Phase3Request(document, _phase2_ledger(document)),
-        SequencedRunner(phase3_responses),
-        phase3_dir,
-    )
+    with patch("scoim.phase3_realization.secrets.randbelow", return_value=0):
+        phase3 = realize_phase3(
+            Phase3Request(document, _phase2_ledger(document)),
+            SequencedRunner(phase3_responses),
+            phase3_dir,
+        )
     assert phase3.realized
     phase3_state = json.loads(
         (phase3_dir / "outputs" / "phase3-state.json").read_text(encoding="utf-8")

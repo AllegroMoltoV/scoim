@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import mido
 import pytest
@@ -91,7 +92,6 @@ def _phase2_ledger(document: dict[str, object]) -> tuple[ProjectionLedgerEntry, 
 def _phase3_responses() -> list[dict[str, object]]:
     return [
         {
-            "tonal_center": 0,
             "mode": "major",
             "overall_harmonic_story": "主調から少し離れて戻る。",
             "section_harmonic_intents": [
@@ -122,11 +122,12 @@ def _phase3_inputs(
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     document = document or _document()
     run_dir = tmp_path / "phase3"
-    result = realize_phase3(
-        Phase3Request(document, _phase2_ledger(document)),
-        SequencedRunner(_phase3_responses()),
-        run_dir,
-    )
+    with patch("scoim.phase3_realization.secrets.randbelow", return_value=0):
+        result = realize_phase3(
+            Phase3Request(document, _phase2_ledger(document)),
+            SequencedRunner(_phase3_responses()),
+            run_dir,
+        )
     assert result.realized
     state = json.loads((run_dir / "outputs" / "phase3-state.json").read_text("utf-8"))
     ledger = json.loads((run_dir / "outputs" / "projection-ledger.json").read_text("utf-8"))
