@@ -1,0 +1,50 @@
+{
+  "archive_file": "bundle.zip",
+  "archive_file_count": 96,
+  "archive_sha256": "1d4ff9807f4cfc277a34550c511d8e72a80cc894b5c9d2e616e34c1986c8f94f",
+  "artifact_sha256": {
+    "artifacts/final.mid": "6477800b20437a784e476ef25c3897bb0df140816f1012bee535ed143a0fb36e",
+    "artifacts/score.musicxml": "540a234b8ec39252deb61aefab9e9d6b1b2e91a16e11e881e1d1b5f16aafe078"
+  },
+  "bundle_schema_version": 4,
+  "fixture_manifest_sha256": "a8d967229f03f5c02721d2af9eddccb3e13725da5e8f801097e5a968a0b71ac5",
+  "fixture_version": 1,
+  "generation_context_contract": null,
+  "phase3_schema_version": 3,
+  "phase7_schema_version": 3,
+  "sanitization": {
+    "checks.json": {
+      "/musicxml/path": "artifacts/score.musicxml",
+      "/smf/path": "artifacts/final.mid"
+    },
+    "manifest.json": "Updated files.checks.json SHA-256 after path sanitization; other values unchanged."
+  },
+  "scope": "Genuine completed bundle from before ancestor and transition descriptions reached phase 3 through phase 5. One section, one note, and no performance directions. Covers public offline verification and replay artifact bytes; does not cover hierarchical context quality or expression curves.",
+  "source_commit": "733a97ef9b0fe0ab544b4fa71a8697531bef8dd7",
+  "source_generation": "scripts/smoke-installed-public.py installed-wheel public smoke on 2026-09-23",
+  "source_inputs": [
+    "examples/fixed-v2/approved-flow.json",
+    "examples/fixed-v2/responses.json"
+  ],
+  "source_manifest_sha256": "6c6a0ef0d25985a92ed2ff6d4ba10433101145247e72b68f9cddc672ab6bb4af",
+  "source_package_version": "0.2.0",
+  "source_revision_verification": {
+    "different_file_count": 0,
+    "installed_package_matched_file_count": 195,
+    "matched_file_count": 200,
+    "method": "Compared extracted distribution against Git commit and installed package files against extracted sources, normalizing CRLF to LF. Baseline verification and replay passed with the original installed package.",
+    "missing_file_count": 0,
+    "paths": [
+      "src/",
+      "scripts/smoke-installed-public.py",
+      "examples/fixed-v2/",
+      "pyproject.toml"
+    ]
+  },
+  "source_runner": {
+    "external_model_calls": 0,
+    "model": "fixed-model",
+    "provider": "fixed-smoke"
+  },
+  "timing_contract": "quantized-score-v1"
+}

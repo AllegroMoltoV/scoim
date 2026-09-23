@@ -12,6 +12,7 @@ from pathlib import Path
 from llm_musical_composer.run_state import atomic_write_json
 
 from .runner_identity import RunnerIdentity
+from .score_generation_context import GENERATION_CONTEXT_CONTRACT
 from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
 
@@ -88,8 +89,9 @@ def _request_record(request: PublicV2RunRequest) -> dict[str, object]:
     ):
         raise ValueError("public v2 identifiers must not be empty")
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "timing_contract": QUANTIZED_TIMING,
+        "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
         "operation": "scoim-public-v2-realization",
         "input_kind": request.input_kind,
         "input_sha256": request.input_sha256,

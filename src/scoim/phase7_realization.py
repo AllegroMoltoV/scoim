@@ -24,6 +24,10 @@ from .profile_capabilities import (
 )
 from .projection_ledger import validate_projection_ledger
 from .proposal import ProposalRunner, preflight_runner
+from .score_generation_context import (
+    GENERATION_CONTEXT_CONTRACT,
+    require_current_generation_context,
+)
 from .score_rendering import ScoreRenderingError, render_score_performance
 from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
@@ -60,6 +64,9 @@ def realize_phase7(
     try:
         loaded = load_complete_phase6_run(request.phase6_run_dir)
         document = loaded.validated_script
+        require_current_generation_context(
+            loaded.phase5.phase4.phase3.plan.generation_context_contract
+        )
         if loaded.phase5.phase4.phase3.plan.timing_contract != QUANTIZED_TIMING:
             raise ValueError("new phase 7 requires the current timing contract; start a new trial")
         plan = loaded.phase5.phase4.phase3.plan.piece_plan
@@ -76,6 +83,7 @@ def realize_phase7(
     spec = {
         "schema_version": 3,
         "timing_contract": QUANTIZED_TIMING,
+        "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
         "operation": "phase7-performance-realization",
         "target_profile": request.target_profile,
         "input_script_sha256": sha256_json(document),

@@ -43,6 +43,7 @@ from .projection_ledger import (
     validate_projection_ledger,
 )
 from .proposal import ProposalRunner, preflight_runner
+from .score_generation_context import GENERATION_CONTEXT_CONTRACT
 from .score_ir import ScoreHarmony
 from .score_timing import MAX_SCORE_UNITS, QUANTIZED_TIMING, ScoreCapacityError
 from .validation import IssueCode, ValidationIssue
@@ -94,6 +95,7 @@ def realize_phase3(
         "target_profile": request.target_profile,
         "divisions": request.divisions,
         "timing_contract": QUANTIZED_TIMING,
+        "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
         "input_script_sha256": sha256_json(request.validated_script),
         "input_projection_ledger_sha256": sha256_json(
             [asdict(entry) for entry in request.projection_ledger]
@@ -358,13 +360,15 @@ def _load_or_select_tonal_center(destination: Path) -> int:
         not isinstance(spec, dict)
         or spec.get("schema_version") != 3
         or spec.get("timing_contract") != QUANTIZED_TIMING
+        or spec.get("generation_context_contract") != GENERATION_CONTEXT_CONTRACT
         or spec.get("operation") != "phase3-realization"
         or not isinstance(tonal_center, int)
         or isinstance(tonal_center, bool)
         or not 0 <= tonal_center <= 11
     ):
         raise StateConflictError(
-            "saved phase-3 run uses an incompatible timing or tonal-center contract; "
+            "saved phase-3 run uses an incompatible timing, tonal-center "
+            "or generation context contract; "
             "start a new trial from the saved composition"
         )
     return tonal_center
@@ -404,6 +408,7 @@ def _harmonic_plan_json(plan: HarmonicPlan) -> dict[str, object]:
         "section_intents": [asdict(intent) for intent in plan.section_intents],
         "divisions": plan.divisions,
         "timing_contract": plan.timing_contract,
+        "generation_context_contract": plan.generation_context_contract,
         "total_score_units": plan.total_score_units,
         "length_units_by_score_unit": plan.length_units_by_score_unit,
         "projection_ledger": [asdict(entry) for entry in plan.projection_ledger],

@@ -136,6 +136,7 @@ def load_complete_phase3_state(
         projection_ledger=local_ledger,
         timing_contract=timing_contract,
         total_score_units=total_score_units,
+        generation_context_contract=cast(str | None, raw_plan.get("generation_context_contract")),
     )
     raw_harmonies = cast(
         Mapping[str, list[dict[str, object]]], phase3_state["harmonies_by_score_unit"]

@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from typing import cast
 
 from .projection_ledger import ProjectionLedgerEntry, validate_projection_ledger
+from .score_generation_context import (
+    GENERATION_CONTEXT_CONTRACT,
+    ancestor_sections,
+    sections_in_hierarchy_order,
+)
 from .score_ir import PiecePlan, ScoreHarmony
 from .score_projection import PlanChoice, build_piece_plan
 from .score_timing import LEGACY_TIMING, MAX_SCORE_UNITS, QUANTIZED_TIMING, allocate_score_units
@@ -32,6 +37,7 @@ class HarmonicPlan:
     projection_ledger: tuple[ProjectionLedgerEntry, ...]
     timing_contract: str = LEGACY_TIMING
     total_score_units: int | None = None
+    generation_context_contract: str | None = None
 
 
 def ordered_leaf_section_ids(document: Mapping[str, object]) -> tuple[str, ...]:
@@ -117,6 +123,7 @@ def overall_plan_prompt(
             "target_duration_seconds"
         ],
         "divisions": divisions,
+        "sections_in_hierarchy_order": sections_in_hierarchy_order(document),
         "leaf_sections_in_performance_order": leaf_sections,
         "materials": script["materials"],
         "material_placements": script["material_placements"],
@@ -201,6 +208,7 @@ def build_harmonic_plan(
         projection_ledger=completed_ledger,
         timing_contract=QUANTIZED_TIMING,
         total_score_units=total_score_units,
+        generation_context_contract=GENERATION_CONTEXT_CONTRACT,
     )
 
 
@@ -362,6 +370,7 @@ def harmony_prompt(
             "overall_harmonic_story": plan.overall_harmonic_story,
         },
         "target": {
+            "ancestor_sections": ancestor_sections(document, target_intent.section_id),
             "section_id": target_intent.section_id,
             "section_description": sections[target_intent.section_id]["description"],
             "score_unit_id": target_intent.score_unit_id,

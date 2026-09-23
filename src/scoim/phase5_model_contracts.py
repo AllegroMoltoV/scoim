@@ -12,6 +12,7 @@ from llm_musical_composer.performance_pipeline import HARMONY_INTERVALS
 from .generation_script_validation import check_generation_script_document
 from .phase3_model_contracts import HarmonicPlan
 from .profile_capabilities import solo_piano_3m_v2_capabilities
+from .score_generation_context import ancestor_sections
 from .score_ir import ScoreHarmony, ScoreNote
 from .score_operation_preflight import build_score_operation_plan
 from .validation import IssueCode, ValidationIssue
@@ -238,6 +239,7 @@ def accompaniment_prompt(
         },
         "target": {
             "section_description": sections[operation.section_id]["description"],
+            "ancestor_sections": ancestor_sections(document, operation.section_id),
             "material_description": materials[operation.material_id]["description"],
             "length_units": plan.length_units_by_score_unit[operation.score_unit_id],
             "divisions": plan.divisions,

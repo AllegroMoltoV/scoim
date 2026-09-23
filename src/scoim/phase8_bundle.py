@@ -21,6 +21,7 @@ from llm_musical_composer.run_state import (
 
 from .finite_model_operation import check_finite_model_operation_records
 from .phase7_state import load_complete_phase7_run
+from .score_generation_context import require_current_generation_context
 from .score_rendering import (
     check_rendered_performance_smf,
     check_score_musicxml,
@@ -129,6 +130,7 @@ def create_phase8_bundle(
 
     try:
         _require_current_timing_lineage(phase_dirs)
+        _require_current_generation_context_lineage(phase_dirs)
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.LINEAGE_MISMATCH, str(error), target)
 
@@ -330,6 +332,19 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
     except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         return (ValidationIssue(IssueCode.LINEAGE_MISMATCH, str(error), "/bundle"),)
     return ()
+
+
+def _require_current_generation_context_lineage(phase_dirs: Mapping[str, Path]) -> None:
+    for phase in ("phase3", "phase7"):
+        spec = _read_object(phase_dirs[phase] / "run-spec.json")
+        require_current_generation_context(spec.get("generation_context_contract"))
+    states = [phase_dirs["phase3"] / "outputs" / "phase3-state.json"]
+    states.extend(
+        phase_dirs[name] / "inputs" / "phase3-state.json" for name in ("phase4", "phase5", "phase6")
+    )
+    for path in states:
+        plan = cast(Mapping[str, object], _read_object(path)["harmonic_plan"])
+        require_current_generation_context(plan.get("generation_context_contract"))
 
 
 def _require_current_timing_lineage(phase_dirs: Mapping[str, Path]) -> None:

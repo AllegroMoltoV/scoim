@@ -347,7 +347,7 @@ def test_realize_cli_uses_v2_for_new_generation_by_default(
     assert manifest["target_profile"] == "solo_piano_3m_v2"
 
 
-@pytest.mark.parametrize("conflict", ["trial_id", "legacy_timing"])
+@pytest.mark.parametrize("conflict", ["trial_id", "legacy_timing", "legacy_context"])
 def test_public_v2_rejects_a_changed_run_contract_before_model_access(
     tmp_path: Path,
     conflict: str,
@@ -369,6 +369,13 @@ def test_public_v2_rejects_a_changed_run_contract_before_model_access(
         marker = json.loads(marker_path.read_text(encoding="utf-8"))
         marker["schema_version"] = 1
         marker.pop("timing_contract")
+        marker_path.write_text(json.dumps(marker), encoding="utf-8")
+
+    if conflict == "legacy_context":
+        marker_path = output / "public-run.json"
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        marker["schema_version"] = 2
+        marker.pop("generation_context_contract")
         marker_path.write_text(json.dumps(marker), encoding="utf-8")
 
     changed = realize(

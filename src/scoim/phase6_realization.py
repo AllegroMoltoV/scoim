@@ -22,6 +22,7 @@ from .projection_ledger import (
     ProjectionLedgerValidationError,
     validate_projection_ledger,
 )
+from .score_generation_context import require_current_generation_context
 from .score_projection import ScoreProjectionError, build_score_spec
 from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
@@ -69,6 +70,7 @@ def realize_phase6(
             raise ValueError("phase-4 and phase-5 placement values overlap")
         notes_by_placement.update(loaded.notes_by_material_placement)
         harmonic_plan = loaded.phase4.phase3.plan
+        require_current_generation_context(harmonic_plan.generation_context_contract)
         if harmonic_plan.timing_contract != QUANTIZED_TIMING:
             raise ValueError("new phase 6 requires the current timing contract; start a new trial")
         unit_ids = tuple(harmonic_plan.length_units_by_score_unit)

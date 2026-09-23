@@ -60,9 +60,9 @@ scoim realize INPUT --output OUTPUT [--model MODEL] [--trial-id ID]
 
 `OUTPUT`は一回の公開処理の出力ルートである。承認済み楽曲台本からv2生成を始める場合は`public-run.json`、`composition`、`realization-work/phase2`から`phase7`、`trial`を作る。v2構成bundleから始める場合は`public-run.json`、`realization-work/phase3`から`phase7`、`trial`を作る。生成試行bundleを再生する場合は`artifacts`を作る。失敗時も、開始済みのモデル要求、応答、検査、確定済みの上流bundleを残す。
 
-新しいv2生成で既存`OUTPUT`を受け入れるのは、`public-run.json`があり、入力内容hash、入力種類、生成profile、構成ID、試行ID、[モデル実行条件](glossary.md#モデル実行条件)、時間契約が今回の要求と一致する場合だけである。同じ時間契約の検証済み完成工程を再利用し、最初の未完成工程から再開する。識別記録がない、要求または時間契約が異なる、保存物が改変されている、モデル呼び出しの終了状態が不明である、のいずれかでは続行しない。v1生成とbundle再生の出力先には既存directoryを指定できない。
+新しいv2生成で既存`OUTPUT`を受け入れるのは、`public-run.json`があり、入力内容hash、入力種類、生成profile、構成ID、試行ID、[モデル実行条件](glossary.md#モデル実行条件)、時間契約、生成文脈契約が今回の要求と一致する場合だけである。同じ時間契約と生成文脈契約の検証済み完成工程を再利用し、最初の未完成工程から再開する。識別記録がない、要求、時間契約、生成文脈契約が異なる、保存物が改変されている、モデル呼び出しの終了状態が不明である、のいずれかでは続行しない。v1生成とbundle再生の出力先には既存directoryを指定できない。
 
-新規v2生成の時間契約は`quantized-score-v1`とする。旧時間契約の途中runを続行せず、保存済み構成bundleを`INPUT`に指定し、新しい`OUTPUT`と`--trial-id`で実現試行を始める。旧完成フェーズを新しい後続フェーズへ混在させない。旧完成bundleの通信なし再生では、保存時の規則と成果物を維持する。時間契約の保存・照合は[生成ランタイム](solo-piano-generation-runtime.md#保存と再開)に従う。
+新規v2生成では、時間契約`quantized-score-v1`と生成文脈契約`section-path-context-v1`を使う。どちらかの契約が異なる旧途中runを続行せず、保存済み構成bundleを`INPUT`に指定し、新しい`OUTPUT`と`--trial-id`で実現試行を始める。旧完成フェーズを新しい後続フェーズへ混在させない。旧完成bundleの通信なし再生では、保存時の規則と成果物を維持する。時間契約の保存・照合は[生成ランタイム](solo-piano-generation-runtime.md#保存と再開)に従う。
 
 v2の新規`OUTPUT`は、一時的な兄弟directoryへ`public-run.json`を書いて検査し、directory単位で確定配置してからモデルを呼ぶ。`OUTPUT`だけを作成して識別記録がない状態を、通常の中断結果として残さない。
 

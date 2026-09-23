@@ -28,6 +28,7 @@ from .projection_ledger import (
     validate_projection_ledger,
 )
 from .proposal import ProposalRunner, preflight_runner
+from .score_generation_context import require_current_generation_context
 from .score_ir import ScoreNote
 from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
@@ -68,6 +69,7 @@ def realize_phase4(
             target_profile=request.target_profile,
         )
         plan = loaded.plan
+        require_current_generation_context(plan.generation_context_contract)
         if plan.timing_contract != QUANTIZED_TIMING:
             raise ValueError("new phase 4 requires the current timing contract; start a new trial")
         harmonies_by_score_unit = loaded.harmonies_by_score_unit

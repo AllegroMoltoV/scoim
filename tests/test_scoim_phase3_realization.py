@@ -327,7 +327,7 @@ def test_phase3_rejects_an_unfinished_legacy_run_before_model_use(
     )
     runner = SequencedRunner([])
 
-    with pytest.raises(StateConflictError, match="incompatible timing or tonal-center"):
+    with pytest.raises(StateConflictError, match="incompatible timing, tonal-center"):
         realize_phase3(Phase3Request(document, _phase2_ledger(document)), runner, run_dir)
 
     assert runner.prompts == []

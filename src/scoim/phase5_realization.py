@@ -30,6 +30,7 @@ from .projection_ledger import (
     validate_projection_ledger,
 )
 from .proposal import ProposalRunner, preflight_runner
+from .score_generation_context import require_current_generation_context
 from .score_ir import ScoreNote
 from .score_timing import QUANTIZED_TIMING
 from .validation import IssueCode, ValidationIssue
@@ -71,6 +72,7 @@ def realize_phase5(
             request.projection_ledger,
             target_profile=request.target_profile,
         )
+        require_current_generation_context(loaded.phase3.plan.generation_context_contract)
         operations = build_accompaniment_operations(request.validated_script)
     except (KeyError, TypeError, ValueError, ProjectionLedgerValidationError) as error:
         issue = ValidationIssue(IssueCode.SEMANTIC_INVALID, str(error), "/phase5_request")
