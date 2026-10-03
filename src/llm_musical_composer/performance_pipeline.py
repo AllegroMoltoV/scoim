@@ -729,6 +729,7 @@ def render_role_neutral_performance_with_pedal_sources(
     group_same_key_onsets: bool = False,
     integrated_timing: bool = False,
     attack_aware_pedal: bool = False,
+    terminal_boundary: tuple[str, int, int] | None = None,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     """Render without role inference and return each pedal event's originating leaf."""
     _validate_pipeline_stages(
@@ -744,6 +745,7 @@ def render_role_neutral_performance_with_pedal_sources(
         group_same_key_onsets=group_same_key_onsets,
         integrated_timing=integrated_timing,
         attack_aware_pedal=attack_aware_pedal,
+        terminal_boundary=terminal_boundary,
     )
 
 
@@ -761,6 +763,7 @@ def _render_performance_unchecked_with_pedal_sources(
     group_same_key_onsets: bool = False,
     integrated_timing: bool = False,
     attack_aware_pedal: bool = False,
+    terminal_boundary: tuple[str, int, int] | None = None,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     leaves, intervals = ordered_leaf_schedule(plan, score)
     materials = {material.material_id: material for material in score.materials}
@@ -779,6 +782,26 @@ def _render_performance_unchecked_with_pedal_sources(
     ):
         raise TimingResolutionError("a score section collapses at integer-millisecond precision")
     final_leaf_id = leaves[-1][0].node_id
+    if terminal_boundary is not None:
+        terminal_material_id, terminal_attack_units, terminal_end_units = terminal_boundary
+        terminal_leaf = next(
+            (
+                (leaf, start, end)
+                for leaf, start, end in leaves
+                if leaf.score_material_id == terminal_material_id
+            ),
+            None,
+        )
+        if terminal_leaf is None:
+            _fail("the shared terminal score material is missing")
+        _terminal_leaf, terminal_start, terminal_leaf_end = terminal_leaf
+        if (
+            not 0
+            <= terminal_attack_units
+            < terminal_end_units
+            <= (terminal_leaf_end - terminal_start)
+        ):
+            _fail("the shared terminal boundary exceeds its score material")
     notes: list[PerformedNote] = []
     rendered_harmonies: list[RenderedHarmony] = []
     for leaf, start, _ in leaves:
@@ -845,15 +868,28 @@ def _render_performance_unchecked_with_pedal_sources(
                 raise TimingResolutionError(
                     "a score note collapses at integer-millisecond precision"
                 )
-            preserves_terminal_release = (
-                leaf.node_id == final_leaf_id
+            preserves_shared_terminal = (
+                terminal_boundary is not None
+                and leaf.score_material_id == terminal_boundary[0]
+                and note.at_units <= terminal_boundary[1] < note.at_units + note.duration_units
+                and note.at_units + note.duration_units == terminal_boundary[2]
+            )
+            if preserves_shared_terminal and mapped_duration <= 0:
+                raise TimingResolutionError("the terminal strike cannot retain its score end")
+            preserves_terminal_release = preserves_shared_terminal or (
+                terminal_boundary is None
+                and leaf.node_id == final_leaf_id
                 and note.at_units == final_onset
                 and note.at_units + note.duration_units == material.length_units
             )
             release_factor = (
                 1.0 if preserves_terminal_release else performance.key_release_percent / 100
             )
-            duration = round(mapped_duration * _gate_ratio(note, articulation) * release_factor)
+            duration = round(
+                mapped_duration
+                if preserves_shared_terminal
+                else mapped_duration * _gate_ratio(note, articulation) * release_factor
+            )
             if integrated_timing and duration <= 0:
                 raise TimingResolutionError(
                     "a performed note collapses at integer-millisecond precision"

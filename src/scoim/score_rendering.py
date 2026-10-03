@@ -44,6 +44,7 @@ from .performance_ir import (
 from .profile_capabilities import solo_piano_3m_v2_capabilities
 from .score_ir import PiecePlan, ScoreSpec, validate_score_ir
 from .score_timing import LEGACY_TIMING, QUANTIZED_TIMING, check_timing_contract
+from .terminal_boundary import TerminalBoundary, validate_score_terminal_boundary
 from .validation import IssueCode, ValidationIssue
 
 
@@ -66,6 +67,7 @@ def render_score_performance(
     physical_key_contract: bool = True,
     timing_contract: str = LEGACY_TIMING,
     pedal_contract: str = HARMONY_RELEASE_PEDAL,
+    terminal_boundary: TerminalBoundary | None = None,
 ) -> RenderedPerformance:
     """Render v2 score data while preserving an explicit note-source correspondence."""
     check_timing_contract(timing_contract)
@@ -79,6 +81,8 @@ def render_score_performance(
             )
         )
     validate_performance_spec(plan, performance, capabilities)
+    if terminal_boundary is not None:
+        validate_score_terminal_boundary(script_document, plan, score, terminal_boundary)
     legacy_plan, legacy_score = _legacy_score_boundary(script_document, plan, score)
     note_source_by_legacy_id = {
         f"{unit.source_section_id}:{note.score_note_id}": note.score_note_id
@@ -114,6 +118,15 @@ def render_score_performance(
             group_same_key_onsets=physical_key_contract,
             integrated_timing=timing_contract == QUANTIZED_TIMING,
             attack_aware_pedal=pedal_contract == HARMONY_RELEASE_PEDAL,
+            terminal_boundary=(
+                (
+                    terminal_boundary.score_unit_id,
+                    terminal_boundary.terminal_attack_units,
+                    terminal_boundary.terminal_end_units,
+                )
+                if terminal_boundary is not None
+                else None
+            ),
         )
     except TimingResolutionError as error:
         raise ScoreRenderingError(
@@ -166,7 +179,117 @@ def render_score_performance(
         rendered,
         enforce_physical_key_contract=physical_key_contract,
     )
+    if terminal_boundary is not None:
+        _validate_rendered_terminal(
+            score,
+            rendered,
+            terminal_boundary,
+            note_candidates,
+            physical_key_contract=physical_key_contract,
+        )
     return rendered
+
+
+def _validate_rendered_terminal(
+    score: ScoreSpec,
+    rendered: RenderedPerformance,
+    boundary: TerminalBoundary,
+    note_candidates: tuple[PerformedNote, ...],
+    *,
+    physical_key_contract: bool,
+) -> None:
+    final_unit = next(
+        (unit for unit in score.score_units if unit.score_unit_id == boundary.score_unit_id),
+        None,
+    )
+    if final_unit is None:
+        raise ScoreRenderingError("the rendered score is missing the terminal score unit")
+    terminal_source_ids = {
+        note.score_note_id
+        for layer in final_unit.score_unit_layers
+        for note in layer.notes
+        if note.at_units <= boundary.terminal_attack_units < note.at_units + note.duration_units
+        and note.at_units + note.duration_units == boundary.terminal_end_units
+    }
+    terminal_notes = tuple(
+        note
+        for note in rendered.notes
+        if terminal_source_ids.intersection(note.source_score_note_ids)
+    )
+    if (
+        not terminal_notes
+        or {
+            source_id
+            for note in terminal_notes
+            for source_id in note.source_score_note_ids
+            if source_id in terminal_source_ids
+        }
+        != terminal_source_ids
+    ):
+        raise ScoreRenderingError("the rendered performance lost a terminal score note")
+    # The mapped end precedes physical restrikes, so a shortened output cannot
+    # redefine the shared ending that this check is meant to preserve.
+    terminal_end_times = {
+        note.at_ms + note.duration_ms
+        for note in note_candidates
+        if terminal_source_ids.intersection(note.source_score_note_ids)
+    }
+    if len(terminal_end_times) != 1:
+        raise ScoreRenderingError("terminal note candidates do not share one mapped end time")
+    terminal_end_ms = next(iter(terminal_end_times))
+    by_pitch: dict[int, list[PerformedNote]] = {}
+    for note in rendered.notes:
+        by_pitch.setdefault(note.pitch, []).append(note)
+    terminal_performed_ids = {note.performed_note_id for note in terminal_notes}
+    terminal_pitches = {note.pitch for note in terminal_notes}
+    for pitch in terminal_pitches:
+        ordered = sorted(by_pitch[pitch], key=lambda note: (note.at_ms, note.performed_note_id))
+        for index, note in enumerate(ordered):
+            if note.performed_note_id not in terminal_performed_ids:
+                continue
+            expected_end = terminal_end_ms
+            if physical_key_contract and index + 1 < len(ordered):
+                expected_end = min(expected_end, ordered[index + 1].at_ms)
+            if note.at_ms + note.duration_ms != expected_end:
+                raise ScoreRenderingError(
+                    "a terminal performed note ends outside its hold boundary"
+                )
+        # A short nonterminal restrike can replace a long terminal source.
+        # Its release must not silently remove the final hold for that key.
+        if physical_key_contract and ordered[-1].at_ms + ordered[-1].duration_ms != terminal_end_ms:
+            raise ScoreRenderingError(
+                ValidationIssue(
+                    IssueCode.UNREPRESENTABLE,
+                    "the last strike of a terminal key does not hold to its end",
+                    "/performance/notes",
+                )
+            )
+    attack_source_ids = {
+        note.score_note_id
+        for layer in final_unit.score_unit_layers
+        for note in layer.notes
+        if note.at_units == boundary.terminal_attack_units
+    }
+    terminal_attack_ms = min(
+        note.at_ms
+        for note in note_candidates
+        if attack_source_ids.intersection(note.source_score_note_ids)
+    )
+    active_down = None
+    for pedal in sorted(
+        rendered.pedals, key=lambda item: (item.at_ms, item.value, item.performed_pedal_id)
+    ):
+        if pedal.value > 0:
+            if active_down is None:
+                active_down = pedal.at_ms
+        elif active_down is not None:
+            if active_down < terminal_end_ms and terminal_attack_ms < pedal.at_ms < terminal_end_ms:
+                raise ScoreRenderingError(
+                    "the terminal pedal releases before the shared terminal end"
+                )
+            active_down = None
+    if active_down is not None and active_down < terminal_end_ms:
+        raise ScoreRenderingError("the terminal pedal has no release")
 
 
 def _merge_simultaneous_key_strikes(

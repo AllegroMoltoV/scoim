@@ -32,6 +32,12 @@ from .projection_ledger import ProjectionLedgerEntry, validate_projection_ledger
 from .score_ir import PiecePlan, ScoreSpec, piece_plan_from_json, score_spec_from_json
 from .score_rendering import render_score_performance
 from .score_timing import LEGACY_TIMING, QUANTIZED_TIMING
+from .terminal_boundary import (
+    SHARED_TERMINAL,
+    TerminalBoundary,
+    terminal_boundary_from_json,
+    validate_score_terminal_boundary,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +50,7 @@ class LoadedPhase7Run:
     rendered_json: Mapping[str, object]
     cumulative_projection_ledger: tuple[ProjectionLedgerEntry, ...]
     phase7_schema_version: int
+    terminal_boundary: TerminalBoundary | None = None
 
 
 def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
@@ -57,15 +64,15 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     state = _read_object(root / "outputs" / "phase7-state.json")
     run_spec = _read_object(root / "run-spec.json")
     schema_version = run_spec.get("schema_version")
-    if schema_version not in {1, 2, 3, 4}:
+    if schema_version not in {1, 2, 3, 4, 5}:
         raise ValueError("the saved phase-7 schema version is unsupported")
     timing_contract = QUANTIZED_TIMING if schema_version >= 3 else LEGACY_TIMING
     if schema_version >= 3 and run_spec.get("timing_contract") != timing_contract:
         raise ValueError("the saved phase-7 timing contract does not match its version")
     if schema_version in {1, 2} and "timing_contract" in run_spec:
         raise ValueError("old phase-7 versions cannot declare the new timing contract")
-    pedal_contract = HARMONY_RELEASE_PEDAL if schema_version == 4 else LEGACY_PEDAL
-    if schema_version == 4 and run_spec.get("pedal_contract") != pedal_contract:
+    pedal_contract = HARMONY_RELEASE_PEDAL if schema_version >= 4 else LEGACY_PEDAL
+    if schema_version >= 4 and run_spec.get("pedal_contract") != pedal_contract:
         raise ValueError("the saved phase-7 pedal contract does not match its version")
     if schema_version < 4 and "pedal_contract" in run_spec:
         raise ValueError("old phase-7 versions cannot declare a pedal contract")
@@ -81,6 +88,20 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     raw_capabilities = _read_object(root / "inputs" / "profile-capabilities.json")
     plan = piece_plan_from_json(raw_plan)
     score = score_spec_from_json(raw_score)
+    boundary = None
+    if schema_version == 5:
+        if run_spec.get("terminal_contract") != SHARED_TERMINAL:
+            raise ValueError("the saved phase-7 terminal contract differs")
+        boundary = terminal_boundary_from_json(_read_object(root / "inputs/terminal-boundary.json"))
+        validate_score_terminal_boundary(document, plan, score, boundary)
+        boundary_hash = sha256_json(asdict(boundary))
+        if any(
+            record.get("input_terminal_boundary_sha256") != boundary_hash
+            for record in (run_spec, state)
+        ):
+            raise ValueError("the saved phase-7 terminal boundary hash differs")
+    elif "terminal_contract" in run_spec or (root / "inputs/terminal-boundary.json").exists():
+        raise ValueError("old phase-7 versions cannot declare a terminal boundary")
     input_ledger = tuple(_ledger_entry(item) for item in raw_input_ledger)
     capabilities = generation_profile_capabilities_from_json(raw_capabilities)
     if capabilities != solo_piano_3m_v2_capabilities(pedal_vocabulary_version(pedal_contract)):
@@ -153,6 +174,7 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
         physical_key_contract=schema_version >= 2,
         timing_contract=timing_contract,
         pedal_contract=pedal_contract,
+        terminal_boundary=boundary,
     )
     rendered_json = rendered_performance_to_json(
         rendered,
@@ -185,6 +207,7 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
         rendered_json,
         cumulative_ledger,
         cast(int, schema_version),
+        boundary,
     )
 
 

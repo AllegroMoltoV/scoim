@@ -146,7 +146,7 @@ def test_phase8_bundle_replays_final_artifacts_without_model_access(tmp_path: Pa
         composition_manifest
     )
     manifest = json.loads((bundle_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["schema_version"] == 6
+    assert manifest["schema_version"] == 7
     assert manifest["composition_id"] == "composition-001"
     assert manifest["trial_id"] == "trial-001"
     assert manifest["composition_manifest_sha256"] == sha256_bytes(composition_manifest)
@@ -256,7 +256,7 @@ def test_phase8_schema_v3_bundle_rejects_an_embedded_phase7_v1_contract(
     assert "phase-7 schema version 2" in verified.issues[0].message
 
 
-def test_phase8_schema_v6_bundle_rejects_a_phase7_v1_contract(tmp_path: Path) -> None:
+def test_phase8_schema_v7_bundle_rejects_a_phase7_v1_contract(tmp_path: Path) -> None:
     phase7_dir = _legacy_phase7_run(tmp_path)
     _rewrite_as_phase7_schema_v1(phase7_dir)
 
@@ -276,7 +276,7 @@ def test_phase8_schema_v6_bundle_rejects_a_phase7_v1_contract(tmp_path: Path) ->
 
     assert result.created is False
     assert result.issues[0].code.value == "lineage_mismatch"
-    assert "phase-7 schema version 4" in result.issues[0].message
+    assert "phase-7 schema version 5" in result.issues[0].message
 
 
 def test_phase8_bundle_rejects_a_non_string_lineage_identifier(tmp_path: Path) -> None:

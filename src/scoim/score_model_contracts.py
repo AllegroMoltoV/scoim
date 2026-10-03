@@ -25,6 +25,14 @@ from .score_group_pitch_placement import (
 )
 from .score_ir import ScoreHarmony, ScoreNote
 from .score_work_plan import ScoreComparison, ScoreWorkOperation, section_leaf_ids
+from .terminal_boundary import (
+    TerminalBoundary,
+    TerminalBoundaryError,
+    available_terminal_boundary,
+    final_role_placement_ids,
+    final_score_unit_id,
+    terminal_boundary_role,
+)
 from .validation import IssueCode, ValidationIssue
 
 
@@ -36,6 +44,7 @@ class ScoreGroupCandidateResult:
     projection_ledger: tuple[ProjectionLedgerEntry, ...] = ()
     comparison_evidence: tuple[dict[str, object], ...] = ()
     evaluated_candidate_count_by_score_unit: dict[str, int] = field(default_factory=dict)
+    terminal_boundary: TerminalBoundary | None = None
 
 
 def _placements(document: Mapping[str, object]) -> Mapping[str, Mapping[str, object]]:
@@ -119,6 +128,7 @@ def score_group_prompt(
     harmonies_by_score_unit: Mapping[str, tuple[ScoreHarmony, ...]],
     accepted_notes_by_placement: Mapping[str, tuple[ScoreNote, ...]],
     accepted_responses_by_placement: Mapping[str, Mapping[str, object]],
+    shared_terminal: bool = True,
 ) -> str:
     """Distinguish immutable external scores from jointly proposed internal references."""
     script = cast(Mapping[str, object], document["script"])
@@ -258,6 +268,38 @@ def score_group_prompt(
             if placements[key]["section_id"] in target_units and key not in owned
         ],
     }
+    if shared_terminal:
+        plan = harmonic_plan.piece_plan
+        final_id = final_score_unit_id(plan)
+        role = terminal_boundary_role(document, plan)
+        owner_ids = final_role_placement_ids(document, plan, role)
+        support_ids = final_role_placement_ids(document, plan, "accompaniment")
+        boundary = available_terminal_boundary(
+            document, plan, harmonies_by_score_unit, accepted_notes_by_placement
+        )
+        context["shared_terminal"] = {
+            "score_unit_id": final_id,
+            "final_harmony": asdict(harmonies_by_score_unit[final_id][-1]),
+            "owner_role": role,
+            "owner_placements": [
+                {
+                    "material_placement_id": key,
+                    "reference_state": "joint_candidate"
+                    if key in owned
+                    else ("accepted" if key in accepted_notes_by_placement else "pending"),
+                }
+                for key in owner_ids
+            ],
+            "support_placement_id": support_ids[-1] if support_ids else None,
+            "accepted_boundary": asdict(boundary) if boundary else None,
+            "requirement": (
+                "終端担当の全配置の最後の打鍵を最後の共有和声内に置き、その打鍵時点で鳴る"
+                "音符の最も遅い終了位置を共有終端にする。最後の単位では、その最後の打鍵より"
+                "後に打ち始めず、共有終端を越える音価を選ばない。支持担当伴奏は最後の打鍵を"
+                "含み共有終端まで続くイベントを持つ。同じ応答の前景から決まる値も守る。"
+                "前景がなければ全伴奏から導出する。群外の確定音符を変更しない。"
+            ),
+        }
     return (
         "共同生成群の全配置を一つの候補として提案してください。foregroundsとaccompanimentsは"
         "入力の役割別配置順と同じ件数にしてください。前景は具体音符、伴奏は和音度数と希望音域を"
@@ -321,6 +363,7 @@ def evaluate_score_group_candidate(
     harmonies_by_score_unit: Mapping[str, tuple[ScoreHarmony, ...]],
     accepted_notes_by_placement: Mapping[str, tuple[ScoreNote, ...]],
     search_limit: int = SCORE_GROUP_SEARCH_LIMIT,
+    shared_terminal: bool = True,
 ) -> ScoreGroupCandidateResult:
     """Evaluate a schema-valid response without mutating any accepted score value."""
     placements = _placements(document)
@@ -367,6 +410,19 @@ def evaluate_score_group_candidate(
             return ScoreGroupCandidateResult(_prefixed_issues(issues, f"/foregrounds/{index}"))
         candidate_notes[key] = build_foreground_notes(key, responses[key])
         existing_by_unit.setdefault(unit_id, []).extend(candidate_notes[key])
+    boundary = None
+    if shared_terminal:
+        try:
+            boundary = available_terminal_boundary(
+                document,
+                harmonic_plan.piece_plan,
+                harmonies_by_score_unit,
+                {**accepted_notes_by_placement, **candidate_notes},
+            )
+        except TerminalBoundaryError as error:
+            return ScoreGroupCandidateResult(
+                (ValidationIssue(IssueCode.MODEL_OUTPUT_INVALID, str(error), "/foregrounds"),)
+            )
     for index, key in enumerate(accompaniment_ids):
         unit_id = unit_by_placement[key]
         issues = check_accompaniment_response(
@@ -398,6 +454,15 @@ def evaluate_score_group_candidate(
         )
     candidate_notes.update(placed.notes_by_placement)
     combined = {**accepted_notes_by_placement, **candidate_notes}
+    if shared_terminal:
+        try:
+            boundary = available_terminal_boundary(
+                document, harmonic_plan.piece_plan, harmonies_by_score_unit, combined
+            )
+        except TerminalBoundaryError as error:
+            return ScoreGroupCandidateResult(
+                (ValidationIssue(IssueCode.MODEL_OUTPUT_INVALID, str(error), "/accompaniments"),)
+            )
     relevant = _comparisons(operation, comparisons)
     section_targets = {
         key
@@ -503,6 +568,7 @@ def evaluate_score_group_candidate(
         notes_by_placement=candidate_notes,
         responses_by_placement=responses,
         projection_ledger=ledger,
+        terminal_boundary=boundary,
         comparison_evidence=tuple(evidence),
         evaluated_candidate_count_by_score_unit=placed.evaluated_candidate_count_by_score_unit,
     )

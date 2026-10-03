@@ -1,7 +1,9 @@
 from dataclasses import replace
+from itertools import pairwise
 
 import pytest
 
+import scoim.score_rendering as score_rendering
 from scoim.performance_ir import (
     PerformanceIrValidationError,
     PerformanceSpec,
@@ -29,6 +31,7 @@ from scoim.score_rendering import (
     write_score_musicxml,
 )
 from scoim.score_timing import QUANTIZED_TIMING
+from scoim.terminal_boundary import TerminalBoundary
 from scoim.validation import IssueCode
 
 
@@ -589,3 +592,194 @@ def test_rendering_rejects_script_placements_that_do_not_match_the_score() -> No
 
     with pytest.raises(ScoreRenderingError, match="layers do not match"):
         render_score_performance(script, plan, score, performance)
+
+
+def test_rendering_preserves_terminal_notes_and_pedal_until_the_shared_end() -> None:
+    plan, score, performance = _score_inputs()
+    unit = score.score_units[0]
+    foreground = unit.score_unit_layers[0]
+    accompaniment = unit.score_unit_layers[1]
+    score = replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                score_unit_layers=(
+                    replace(
+                        foreground,
+                        notes=(
+                            replace(foreground.notes[0], at_units=36, duration_units=12),
+                            replace(foreground.notes[1], at_units=0, duration_units=12),
+                        ),
+                    ),
+                    accompaniment,
+                ),
+            ),
+        ),
+    )
+    root_performance = replace(
+        performance.section_performances[0],
+        pedal_profile="harmony_legato",
+    )
+    performance = replace(
+        performance,
+        key_release_percent=50,
+        section_performances=(root_performance,),
+    )
+    boundary = TerminalBoundary("score-unit-statement", 36, 48)
+
+    rendered = render_score_performance(
+        _script(),
+        plan,
+        score,
+        performance,
+        terminal_boundary=boundary,
+    )
+
+    terminal_sources = {"note-upper", "note-support"}
+    terminal_notes = tuple(
+        note for note in rendered.notes if terminal_sources.intersection(note.source_score_note_ids)
+    )
+    assert {note.at_ms + note.duration_ms for note in terminal_notes} == {180_000}
+    assert rendered.pedals[-1].value == 0
+    assert rendered.pedals[-1].at_ms == 180_000
+
+
+def _terminal_restrike_inputs(*, extra_restrike=False, unison=False):
+    plan, score, performance = _score_inputs()
+    unit = score.score_units[0]
+    foreground, accompaniment = unit.score_unit_layers
+    support = [accompaniment.notes[0]]
+    if extra_restrike:
+        support.append(ScoreNote("middle-strike", 24, 6, 72, "lower"))
+    if unison:
+        support.append(ScoreNote("unison-source", 0, 24, 72, "lower"))
+    score = replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                score_unit_layers=(
+                    replace(
+                        foreground,
+                        notes=(
+                            ScoreNote("early-strike", 0, 48, 72, "upper"),
+                            ScoreNote("last-strike", 36, 12, 72, "lower"),
+                        ),
+                    ),
+                    replace(accompaniment, notes=tuple(support)),
+                ),
+            ),
+        ),
+    )
+    return plan, score, performance, TerminalBoundary(unit.score_unit_id, 36, 48)
+
+
+@pytest.mark.parametrize(
+    ("extra_restrike", "unison"), [(False, False), (True, False), (False, True)]
+)
+def test_terminal_hold_allows_restrikes_and_preserves_sources_and_smf(
+    tmp_path, extra_restrike, unison
+):
+    plan, score, performance, boundary = _terminal_restrike_inputs(
+        extra_restrike=extra_restrike, unison=unison
+    )
+    rendered = render_score_performance(
+        _script(), plan, score, performance, terminal_boundary=boundary
+    )
+    validate_rendered_performance(plan, score, performance, rendered)
+    strikes = sorted((note for note in rendered.notes if note.pitch == 72), key=lambda n: n.at_ms)
+    assert len(strikes) == (3 if extra_restrike else 2)
+    assert strikes[0].at_ms == 0
+    assert strikes[-1].at_ms == 135_000
+    assert strikes[0].at_ms + strikes[0].duration_ms == strikes[1].at_ms
+    for earlier, later in pairwise(strikes):
+        assert earlier.at_ms + earlier.duration_ms <= later.at_ms
+    assert strikes[-1].at_ms + strikes[-1].duration_ms == 180_000
+    bass = next(note for note in rendered.notes if note.pitch == 43)
+    assert bass.at_ms == 0
+    assert bass.duration_ms == 180_000
+    assert sorted(source for note in rendered.notes for source in note.source_score_note_ids) == (
+        sorted(
+            note.score_note_id
+            for layer in score.score_units[0].score_unit_layers
+            for note in layer.notes
+        )
+    )
+    if unison:
+        assert set(strikes[0].source_score_note_ids) == {"early-strike", "unison-source"}
+    path = write_rendered_performance_smf(rendered, tmp_path / "restrike.mid")
+    assert check_rendered_performance_smf(rendered, path)["status"] == "passed"
+
+
+@pytest.mark.parametrize("target", ["early-strike", "last-strike", "note-support", "all"])
+def test_terminal_hold_rejects_shortened_strikes_after_physical_conversion(monkeypatch, target):
+    plan, score, performance, boundary = _terminal_restrike_inputs()
+    original = score_rendering._end_notes_before_restrike
+
+    def shorten(notes):
+        return tuple(
+            replace(note, duration_ms=note.duration_ms - 1)
+            if target == "all" or target in note.source_score_note_ids
+            else note
+            for note in original(notes)
+        )
+
+    monkeypatch.setattr(score_rendering, "_end_notes_before_restrike", shorten)
+    with pytest.raises(ScoreRenderingError, match="terminal"):
+        render_score_performance(_script(), plan, score, performance, terminal_boundary=boundary)
+
+
+def test_terminal_hold_rejects_a_short_final_restrike_outside_terminal_sources():
+    plan, score, performance, boundary = _terminal_restrike_inputs()
+    unit = score.score_units[0]
+    foreground, accompaniment = unit.score_unit_layers
+    score = replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                score_unit_layers=(
+                    replace(
+                        foreground,
+                        notes=(foreground.notes[0], replace(foreground.notes[1], duration_units=6)),
+                    ),
+                    accompaniment,
+                ),
+            ),
+        ),
+    )
+    with pytest.raises(ScoreRenderingError, match="terminal") as captured:
+        render_score_performance(_script(), plan, score, performance, terminal_boundary=boundary)
+    assert captured.value.issue.code.value == "unrepresentable"
+
+
+def test_terminal_hold_does_not_require_a_replaced_short_note_to_fill_a_preterminal_gap():
+    plan, score, performance, boundary = _terminal_restrike_inputs(extra_restrike=True)
+    unit = score.score_units[0]
+    foreground, accompaniment = unit.score_unit_layers
+    score = replace(
+        score,
+        score_units=(
+            replace(
+                unit,
+                score_unit_layers=(
+                    foreground,
+                    replace(
+                        accompaniment,
+                        notes=(
+                            accompaniment.notes[0],
+                            replace(accompaniment.notes[1], duration_units=6),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    rendered = render_score_performance(
+        _script(), plan, score, performance, terminal_boundary=boundary
+    )
+    middle = next(n for n in rendered.notes if "middle-strike" in n.source_score_note_ids)
+    assert middle.at_ms + middle.duration_ms < 135_000
+    last = next(n for n in rendered.notes if "last-strike" in n.source_score_note_ids)
+    assert last.at_ms + last.duration_ms == 180_000

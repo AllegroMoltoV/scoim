@@ -15,6 +15,7 @@ from .pedal_contract import HARMONY_RELEASE_PEDAL
 from .runner_identity import RunnerIdentity
 from .score_generation_context import GENERATION_CONTEXT_CONTRACT
 from .score_timing import QUANTIZED_TIMING
+from .terminal_boundary import SHARED_TERMINAL
 from .validation import IssueCode, ValidationIssue
 
 
@@ -90,7 +91,8 @@ def _request_record(request: PublicV2RunRequest) -> dict[str, object]:
     ):
         raise ValueError("public v2 identifiers must not be empty")
     return {
-        "schema_version": 5,
+        "schema_version": 6,
+        "terminal_contract": SHARED_TERMINAL,
         "pedal_contract": HARMONY_RELEASE_PEDAL,
         "timing_contract": QUANTIZED_TIMING,
         "generation_context_contract": GENERATION_CONTEXT_CONTRACT,

@@ -40,8 +40,14 @@ from .score_work_plan import (
     ScoreWorkPlan,
     build_score_work_plan,
 )
+from .terminal_boundary import (
+    SHARED_TERMINAL,
+    TerminalBoundary,
+    derive_score_terminal_boundary,
+    validate_score_terminal_boundary,
+)
 
-SCORE_STATE_SCHEMA_VERSION = 1
+SCORE_STATE_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +57,8 @@ class LoadedScoreRun:
     score: ScoreSpec
     notes_by_material_placement: Mapping[str, tuple[ScoreNote, ...]]
     cumulative_projection_ledger: tuple[ProjectionLedgerEntry, ...]
+    terminal_boundary: TerminalBoundary | None = None
+    schema_version: int = SCORE_STATE_SCHEMA_VERSION
 
 
 def score_run_spec(
@@ -58,10 +66,13 @@ def score_run_spec(
     phase3_state: Mapping[str, object],
     input_ledger: Sequence[ProjectionLedgerEntry],
     work_plan: ScoreWorkPlan,
+    *,
+    schema_version: int = SCORE_STATE_SCHEMA_VERSION,
 ) -> dict[str, object]:
     """Bind the immutable schedule and its musical inputs to this saved version."""
     return {
-        "schema_version": SCORE_STATE_SCHEMA_VERSION,
+        "schema_version": schema_version,
+        **({"terminal_contract": SHARED_TERMINAL} if schema_version >= 2 else {}),
         "operation": "score-realization",
         "target_profile": "solo_piano_3m_v2",
         "timing_contract": QUANTIZED_TIMING,
@@ -106,9 +117,11 @@ def score_operation_request(
         harmonies_by_score_unit=phase3.harmonies_by_score_unit,
         accepted_notes_by_placement=notes,
         accepted_responses_by_placement=responses,
+        shared_terminal=spec["schema_version"] >= 2,
     )
     schema = score_group_response_schema(document, operation)
     immutable_input = {
+        **({"terminal_contract": SHARED_TERMINAL} if spec["schema_version"] >= 2 else {}),
         "script_sha256": spec["input_script_sha256"],
         "phase3_state_sha256": spec["input_phase3_state_sha256"],
         "operation": asdict(operation),
@@ -130,6 +143,15 @@ def score_operation_snapshot(
     """Connect one whole accepted candidate to its exact delivered request."""
     return {
         "operation_id": operation.operation_id,
+        **(
+            {
+                "terminal_boundary": asdict(candidate.terminal_boundary)
+                if candidate.terminal_boundary
+                else None
+            }
+            if "terminal_contract" in immutable_input
+            else {}
+        ),
         "material_placement_ids": list(operation.material_placement_ids),
         "prompt_sha256": sha256_text(prompt),
         "schema_sha256": sha256_json(schema),
@@ -176,7 +198,8 @@ def load_complete_score_run(
     root = Path(run_dir).resolve()
     output = outputs_dir if outputs_dir is not None else root / "outputs"
     state = read_score_object(output / "score-state.json")
-    if state.get("schema_version") != SCORE_STATE_SCHEMA_VERSION:
+    schema_version = state.get("schema_version")
+    if schema_version not in {1, 2}:
         raise ValueError("the saved score state schema is unsupported")
     if state.get("outcome") != "complete":
         raise ValueError("a complete score state is required")
@@ -191,7 +214,9 @@ def load_complete_score_run(
     work_plan = build_score_work_plan(document)
     if work_plan.issues:
         raise ValueError(work_plan.issues[0].message)
-    spec = score_run_spec(document, phase3_state, input_ledger, work_plan)
+    spec = score_run_spec(
+        document, phase3_state, input_ledger, work_plan, schema_version=cast(int, schema_version)
+    )
     if sha256_json(read_score_object(root / "run-spec.json")) != sha256_json(spec):
         raise ValueError("the saved score run specification does not match its inputs")
     if state.get("run_spec_sha256") != sha256_json(spec):
@@ -213,6 +238,7 @@ def load_complete_score_run(
     responses: dict[str, Mapping[str, object]] = {}
     local_ledger: list[ProjectionLedgerEntry] = []
     group_hashes: dict[str, str] = {}
+    boundary = None
     for operation in work_plan.operations:
         comparisons = operation_comparisons(operation, work_plan)
         prompt, schema, immutable_input = score_operation_request(
@@ -236,6 +262,7 @@ def load_complete_score_run(
                 harmonies_by_score_unit=phase3.harmonies_by_score_unit,
                 accepted_notes_by_placement=notes,
                 search_limit=SCORE_GROUP_SEARCH_LIMIT,
+                shared_terminal=schema_version >= 2,
             )
             evaluated[:] = [candidate]
             return candidate.issues
@@ -249,6 +276,7 @@ def load_complete_score_run(
         if accepted is None or not evaluated:
             raise ValueError("a saved score operation has no validated accepted response")
         candidate = evaluated[0]
+        boundary = candidate.terminal_boundary or boundary
         snapshot = score_operation_snapshot(operation, candidate, prompt, schema, immutable_input)
         saved_snapshot = read_score_object(root / "groups" / f"{operation.operation_id}.json")
         if sha256_json(saved_snapshot) != sha256_json(snapshot):
@@ -268,6 +296,15 @@ def load_complete_score_run(
     if state.get("responses_by_material_placement") != responses:
         raise ValueError("saved score responses do not match accepted candidates")
     score, cumulative = assemble_score(document, phase3, notes, local_ledger)
+    if schema_version >= 2:
+        reconstructed = derive_score_terminal_boundary(document, phase3.plan.piece_plan, score)
+        if boundary != reconstructed:
+            raise ValueError("saved score candidate terminal boundary differs from assembled score")
+        validate_score_terminal_boundary(document, phase3.plan.piece_plan, score, reconstructed)
+        if state.get("terminal_boundary") != asdict(reconstructed) or state.get(
+            "terminal_boundary_sha256"
+        ) != sha256_json(asdict(reconstructed)):
+            raise ValueError("saved score terminal boundary does not match accepted candidates")
     for field, filename in (
         ("score_spec", "score-spec.json"),
         ("projection_ledger", "projection-ledger.json"),
@@ -309,7 +346,9 @@ def load_complete_score_run(
             output / filename,
             timing_contract=phase3.plan.timing_contract,
         )
-    return LoadedScoreRun(document, phase3, score, notes, cumulative)
+    return LoadedScoreRun(
+        document, phase3, score, notes, cumulative, boundary, cast(int, schema_version)
+    )
 
 
 def serialized_notes(notes: Mapping[str, tuple[ScoreNote, ...]]) -> dict[str, object]:

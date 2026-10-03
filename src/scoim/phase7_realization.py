@@ -31,6 +31,7 @@ from .score_generation_context import (
 from .score_rendering import ScoreRenderingError, render_score_performance
 from .score_state import load_complete_score_run
 from .score_timing import QUANTIZED_TIMING
+from .terminal_boundary import SHARED_TERMINAL
 from .validation import IssueCode, ValidationIssue
 
 
@@ -64,6 +65,11 @@ def realize_phase7(
         return Phase7RealizationResult(False, "request_invalid", None, None, (issue,))
     try:
         loaded = load_complete_score_run(request.score_run_dir)
+        if loaded.schema_version != 2 or loaded.terminal_boundary is None:
+            raise ValueError(
+                "new phase 7 requires the shared terminal score contract; start a new trial"
+            )
+        boundary = loaded.terminal_boundary
         document = loaded.validated_script
         require_current_generation_context(loaded.phase3.plan.generation_context_contract)
         if loaded.phase3.plan.timing_contract != QUANTIZED_TIMING:
@@ -80,7 +86,9 @@ def realize_phase7(
     store = RunStore(destination, max_calls=2 * len(operations))
     operation_order = [operation.operation_id for operation in operations]
     spec = {
-        "schema_version": 4,
+        "schema_version": 5,
+        "terminal_contract": SHARED_TERMINAL,
+        "input_terminal_boundary_sha256": sha256_json(asdict(boundary)),
         "pedal_contract": HARMONY_RELEASE_PEDAL,
         "timing_contract": QUANTIZED_TIMING,
         "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
@@ -99,6 +107,7 @@ def realize_phase7(
     store.snapshot_json("inputs/validated-script.json", dict(document))
     store.snapshot_json("inputs/piece-plan.json", asdict(plan))
     store.snapshot_json("inputs/score-spec.json", asdict(score))
+    store.snapshot_json("inputs/terminal-boundary.json", asdict(boundary))
     store.snapshot_json(
         "inputs/projection-ledger.json",
         [asdict(entry) for entry in loaded.cumulative_projection_ledger],
@@ -182,6 +191,7 @@ def realize_phase7(
             built.performance,
             timing_contract=QUANTIZED_TIMING,
             pedal_contract=HARMONY_RELEASE_PEDAL,
+            terminal_boundary=boundary,
         )
     except ScoreRenderingError as error:
         outcome = (
@@ -200,6 +210,7 @@ def realize_phase7(
     state = {
         "outcome": "complete",
         "target_profile": request.target_profile,
+        "input_terminal_boundary_sha256": spec["input_terminal_boundary_sha256"],
         "input_script_sha256": spec["input_script_sha256"],
         "input_piece_plan_sha256": spec["input_piece_plan_sha256"],
         "input_score_spec_sha256": spec["input_score_spec_sha256"],

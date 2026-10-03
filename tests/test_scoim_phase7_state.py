@@ -78,8 +78,8 @@ def test_phase7_run_reconstructs_without_calling_a_model(tmp_path) -> None:
     loaded = load_complete_phase7_run(run_dir)
 
     run_spec = json.loads((run_dir / "run-spec.json").read_text(encoding="utf-8"))
-    assert run_spec["schema_version"] == 4
-    assert loaded.phase7_schema_version == 4
+    assert run_spec["schema_version"] == 5
+    assert loaded.phase7_schema_version == 5
     assert loaded.performance.section_performances[0].section_id == "statement"
     assert loaded.rendered.notes
     assert loaded.cumulative_projection_ledger[-1].status == "unverified"

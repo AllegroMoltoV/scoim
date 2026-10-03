@@ -33,6 +33,7 @@ from .score_state import (
 )
 from .score_timing import QUANTIZED_TIMING
 from .score_work_plan import build_score_work_plan
+from .terminal_boundary import TerminalBoundary, validate_score_terminal_boundary
 from .validation import IssueCode, ValidationIssue
 
 
@@ -116,6 +117,7 @@ def realize_score(
     responses: dict[str, Mapping[str, object]] = {}
     local_ledger: list[ProjectionLedgerEntry] = []
     group_hashes: dict[str, str] = {}
+    boundary: TerminalBoundary | None = None
     new_operations = 0
     repair_count = 0
     for operation in work_plan.operations:
@@ -170,6 +172,7 @@ def realize_score(
         if not evaluated:
             raise ValueError("the accepted score response was not evaluated")
         candidate = evaluated[0]
+        boundary = candidate.terminal_boundary or boundary
         snapshot = score_operation_snapshot(operation, candidate, prompt, schema, immutable_input)
         store.snapshot_json(f"groups/{operation.operation_id}.json", snapshot)
         group_hashes[operation.operation_id] = sha256_json(snapshot)
@@ -187,6 +190,11 @@ def realize_score(
     temporary = Path(tempfile.mkdtemp(prefix=".outputs-", dir=destination)).resolve()
     try:
         score, cumulative = assemble_score(request.validated_script, phase3, notes, local_ledger)
+        if boundary is None:
+            raise ValueError("the completed score has no shared terminal boundary")
+        validate_score_terminal_boundary(
+            request.validated_script, phase3.plan.piece_plan, score, boundary
+        )
         atomic_write_json(temporary / "score-spec.json", asdict(score))
         atomic_write_json(
             temporary / "projection-ledger.json", [asdict(entry) for entry in cumulative]
@@ -220,6 +228,8 @@ def realize_score(
                 timing_contract=phase3.plan.timing_contract,
             )
         state = _progress_state(spec, notes, responses, group_hashes, "complete")
+        state["terminal_boundary"] = asdict(boundary)
+        state["terminal_boundary_sha256"] = sha256_json(asdict(boundary))
         state.update(
             {
                 field: {"path": f"outputs/{filename}", "sha256": sha256_file(temporary / filename)}

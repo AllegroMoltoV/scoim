@@ -133,10 +133,10 @@ def create_phase8_bundle(
         loaded = load_complete_phase7_run(phase_dirs["phase7"])
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.SEMANTIC_INVALID, str(error), target)
-    if loaded.phase7_schema_version != 4:
+    if loaded.phase7_schema_version != 5:
         return _bundle_failure(
             IssueCode.LINEAGE_MISMATCH,
-            "a schema-version-6 bundle requires phase-7 schema version 4",
+            "a schema-version-7 bundle requires phase-7 schema version 5",
             target,
         )
 
@@ -201,7 +201,7 @@ def create_phase8_bundle(
         }
         manifest = {
             "bundle_type": "scoim-generation-trial",
-            "schema_version": 6,
+            "schema_version": 7,
             "target_profile": "solo_piano_3m_v2",
             "composition_id": request.composition_id,
             "trial_id": request.trial_id,
@@ -276,7 +276,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         schema_version = manifest.get("schema_version")
         if (
             manifest.get("bundle_type") != "scoim-generation-trial"
-            or schema_version not in {1, 2, 3, 4, 5, 6}
+            or schema_version not in {1, 2, 3, 4, 5, 6, 7}
             or manifest.get("target_profile") != "solo_piano_3m_v2"
         ):
             raise ValueError("bundle identity is invalid")
@@ -294,7 +294,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         loaded = load_complete_phase7_run(bundle / "model-runs" / "phase7")
         if schema_version == 3 and loaded.phase7_schema_version != 2:
             raise ValueError("a schema-version-3 bundle requires phase-7 schema version 2")
-        phase_names = _SCORE_PHASE_NAMES if schema_version in {5, 6} else _PHASE_NAMES
+        phase_names = _SCORE_PHASE_NAMES if schema_version in {5, 6, 7} else _PHASE_NAMES
         for phase_name in phase_names:
             operation_records = check_finite_model_operation_records(
                 bundle / "model-runs" / phase_name
@@ -319,8 +319,8 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             _require_current_timing_lineage(
                 {name: bundle / "model-runs" / name for name in _PHASE_NAMES}
             )
-        if schema_version in {5, 6}:
-            expected_phase7 = 3 if schema_version == 5 else 4
+        if schema_version in {5, 6, 7}:
+            expected_phase7 = {5: 3, 6: 4, 7: 5}[schema_version]
             if loaded.phase7_schema_version != expected_phase7:
                 raise ValueError(f"bundle v{schema_version} requires phase7 v{expected_phase7}")
             _require_score_lineage(
@@ -330,7 +330,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             _require_legacy_lineage({name: bundle / "model-runs" / name for name in _PHASE_NAMES})
         if schema_version in {1, 2} and loaded.phase7_schema_version >= 3:
             raise ValueError("old bundles cannot contain the current timing contract")
-        if schema_version in {2, 3, 4, 5, 6}:
+        if schema_version in {2, 3, 4, 5, 6, 7}:
             composition_id = manifest.get("composition_id")
             trial_id = manifest.get("trial_id")
             composition_manifest_bytes = (
@@ -352,7 +352,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             ):
                 raise ValueError("composition manifest lineage does not match")
             _require_composition_script(
-                composition_manifest, loaded.validated_script, required=schema_version == 6
+                composition_manifest, loaded.validated_script, required=schema_version >= 6
             )
         checks = _read_object(bundle / "checks.json")
         if any(
@@ -383,6 +383,12 @@ def _require_score_lineage(phase_dirs: Mapping[str, Path]) -> None:
         ("score", "inputs/validated-script.json", "phase7", "inputs/validated-script.json"),
     )
     _require_json_links(phase_dirs, links)
+    expected_score = 2 if phase7.phase7_schema_version >= 5 else 1
+    if (
+        score.schema_version != expected_score
+        or score.terminal_boundary != phase7.terminal_boundary
+    ):
+        raise ValueError("bundle score and performance terminal contracts differ")
     if score.score != phase7.score or score.phase3.plan.piece_plan != phase7.plan:
         raise ValueError("bundle score and performance inputs differ")
 
@@ -456,7 +462,7 @@ def _require_composition_script(
 def _require_request_lineage(bundle: Path, request: Phase8BundleRequest) -> None:
     manifest = _read_object(bundle / "manifest.json")
     if (
-        manifest.get("schema_version") != 6
+        manifest.get("schema_version") != 7
         or manifest.get("composition_id") != request.composition_id
         or manifest.get("trial_id") != request.trial_id
         or (bundle / "lineage/composition-manifest.json").read_bytes()

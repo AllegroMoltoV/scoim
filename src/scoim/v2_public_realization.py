@@ -248,8 +248,8 @@ def _realize_phases(
         if not phase7.realized:
             return phase7.issues
     loaded_phase7 = load_complete_phase7_run(phase7_dir)
-    if loaded_phase7.phase7_schema_version != 4:
-        raise ValueError("new realization requires phase-7 schema version 4")
+    if loaded_phase7.phase7_schema_version != 5:
+        raise ValueError("new realization requires phase-7 schema version 5")
 
     request = Phase8BundleRequest(
         phase7_run_dir=phase7_dir,

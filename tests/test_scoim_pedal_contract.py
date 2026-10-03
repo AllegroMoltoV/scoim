@@ -177,7 +177,12 @@ def test_new_pedal_run_resumes_and_replays_without_models(tmp_path, profile):
     archive = Path(__file__).parent / f"fixtures/scoim/legacy-pedal-{profile}-480904e/bundle.zip"
     with zipfile.ZipFile(archive) as saved:
         saved.extractall(tmp_path / "legacy")
-    runs = tmp_path / "legacy/model-runs"
+    from test_scoim_score_realization import _score_run
+
+    old_runs = tmp_path / "legacy/model-runs"
+    document = json.loads((old_runs / "score/inputs/validated-script.json").read_text())
+    runs = tmp_path / "current"
+    _score_run(runs, document)
     response = _response()
     response["performances"][0]["pedal_profile"] = profile
     response["performances"][0]["handled_directions"][0]["field_names"].append("pedal_profile")
@@ -189,10 +194,23 @@ def test_new_pedal_run_resumes_and_replays_without_models(tmp_path, profile):
     assert realize_phase7(request, resumed, phase7).realized
     assert resumed.prompts == []
     new = load_complete_phase7_run(phase7)
-    old = load_complete_phase7_run(runs / "phase7")
-    assert new.phase7_schema_version == 4
-    assert new.rendered.notes == old.rendered.notes
-    assert new.rendered.pedals != old.rendered.pedals
+    without_pedal = render_score_performance(
+        new.validated_script,
+        new.plan,
+        new.score,
+        replace(
+            new.performance,
+            section_performances=tuple(
+                replace(item, pedal_profile="none") for item in new.performance.section_performances
+            ),
+        ),
+        timing_contract=QUANTIZED_TIMING,
+        terminal_boundary=new.terminal_boundary,
+    )
+    assert new.phase7_schema_version == 5
+    assert new.rendered.notes == without_pedal.notes
+    assert any(p.value > 0 for p in new.rendered.pedals)
+    assert not any(p.value > 0 for p in without_pedal.pedals)
     manifest = json.loads((tmp_path / "legacy/lineage/composition-manifest.json").read_bytes())
     manifest["validated_script_content_sha256"] = script_0_4_content_sha256(new.validated_script)
     bundle = tmp_path / "new-bundle"
@@ -207,7 +225,7 @@ def test_new_pedal_run_resumes_and_replays_without_models(tmp_path, profile):
         bundle,
     )
     assert created.created, created.issues
-    assert json.loads((bundle / "manifest.json").read_text())["schema_version"] == 6
+    assert json.loads((bundle / "manifest.json").read_text())["schema_version"] == 7
     replayed = replay_phase8_bundle(bundle, tmp_path / "replay")
     assert replayed.replayed, replayed.issues
     for filename in ("final.mid", "score.musicxml"):
@@ -215,7 +233,7 @@ def test_new_pedal_run_resumes_and_replays_without_models(tmp_path, profile):
             tmp_path / "replay" / filename
         ).read_bytes()
     with pytest.raises(RuntimeError, match="run-spec conflicts"):
-        realize_phase7(request, resumed, runs / "phase7")
+        realize_phase7(request, resumed, old_runs / "phase7")
     assert resumed.prompts == []
 
 
