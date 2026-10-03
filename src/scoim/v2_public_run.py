@@ -11,6 +11,7 @@ from pathlib import Path
 
 from llm_musical_composer.run_state import atomic_write_json
 
+from .pedal_contract import HARMONY_RELEASE_PEDAL
 from .runner_identity import RunnerIdentity
 from .score_generation_context import GENERATION_CONTEXT_CONTRACT
 from .score_timing import QUANTIZED_TIMING
@@ -57,7 +58,7 @@ def ensure_public_v2_run(
         if saved != record:
             return _failure(
                 IssueCode.STORAGE_CONFLICT,
-                "The saved public v2 request or timing contract conflicts with this request; "
+                "The saved public v2 request or generation contract conflicts with this request; "
                 "start a new trial from the saved composition in a new output directory",
                 marker,
             )
@@ -89,7 +90,8 @@ def _request_record(request: PublicV2RunRequest) -> dict[str, object]:
     ):
         raise ValueError("public v2 identifiers must not be empty")
     return {
-        "schema_version": 4,
+        "schema_version": 5,
+        "pedal_contract": HARMONY_RELEASE_PEDAL,
         "timing_contract": QUANTIZED_TIMING,
         "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
         "operation": "scoim-public-v2-realization",

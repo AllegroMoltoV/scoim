@@ -30,6 +30,7 @@ from llm_musical_composer.performance_pipeline import (
 )
 from llm_musical_composer.performance_timing import TimingResolutionError
 
+from .pedal_contract import HARMONY_RELEASE_PEDAL, pedal_vocabulary_version
 from .performance_ir import (
     PerformanceSpec,
     PerformedNote,
@@ -64,10 +65,11 @@ def render_score_performance(
     *,
     physical_key_contract: bool = True,
     timing_contract: str = LEGACY_TIMING,
+    pedal_contract: str = HARMONY_RELEASE_PEDAL,
 ) -> RenderedPerformance:
     """Render v2 score data while preserving an explicit note-source correspondence."""
     check_timing_contract(timing_contract)
-    capabilities = solo_piano_3m_v2_capabilities()
+    capabilities = solo_piano_3m_v2_capabilities(pedal_vocabulary_version(pedal_contract))
     if not capabilities.supports_velocity_policy(performance.velocity_policy_id):
         raise ScoreRenderingError(
             ValidationIssue(
@@ -76,7 +78,7 @@ def render_score_performance(
                 "/performance/velocity_policy_id",
             )
         )
-    validate_performance_spec(plan, performance)
+    validate_performance_spec(plan, performance, capabilities)
     legacy_plan, legacy_score = _legacy_score_boundary(script_document, plan, score)
     note_source_by_legacy_id = {
         f"{unit.source_section_id}:{note.score_note_id}": note.score_note_id
@@ -111,6 +113,7 @@ def render_score_performance(
             legacy_performance,
             group_same_key_onsets=physical_key_contract,
             integrated_timing=timing_contract == QUANTIZED_TIMING,
+            attack_aware_pedal=pedal_contract == HARMONY_RELEASE_PEDAL,
         )
     except TimingResolutionError as error:
         raise ScoreRenderingError(

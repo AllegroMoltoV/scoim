@@ -11,6 +11,7 @@ from typing import cast
 from llm_musical_composer.run_state import sha256_json, sha256_text
 
 from .finite_model_operation import check_finite_model_operation_records
+from .pedal_contract import HARMONY_RELEASE_PEDAL, LEGACY_PEDAL, pedal_vocabulary_version
 from .performance_ir import (
     PerformanceSpec,
     RenderedPerformance,
@@ -56,13 +57,18 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     state = _read_object(root / "outputs" / "phase7-state.json")
     run_spec = _read_object(root / "run-spec.json")
     schema_version = run_spec.get("schema_version")
-    if schema_version not in {1, 2, 3}:
+    if schema_version not in {1, 2, 3, 4}:
         raise ValueError("the saved phase-7 schema version is unsupported")
-    timing_contract = QUANTIZED_TIMING if schema_version == 3 else LEGACY_TIMING
-    if schema_version == 3 and run_spec.get("timing_contract") != timing_contract:
+    timing_contract = QUANTIZED_TIMING if schema_version >= 3 else LEGACY_TIMING
+    if schema_version >= 3 and run_spec.get("timing_contract") != timing_contract:
         raise ValueError("the saved phase-7 timing contract does not match its version")
     if schema_version in {1, 2} and "timing_contract" in run_spec:
         raise ValueError("old phase-7 versions cannot declare the new timing contract")
+    pedal_contract = HARMONY_RELEASE_PEDAL if schema_version == 4 else LEGACY_PEDAL
+    if schema_version == 4 and run_spec.get("pedal_contract") != pedal_contract:
+        raise ValueError("the saved phase-7 pedal contract does not match its version")
+    if schema_version < 4 and "pedal_contract" in run_spec:
+        raise ValueError("old phase-7 versions cannot declare a pedal contract")
     if state.get("outcome") != "complete":
         raise ValueError("phase 8 requires a complete phase-7 state")
     if state.get("target_profile") != "solo_piano_3m_v2":
@@ -77,8 +83,8 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
     score = score_spec_from_json(raw_score)
     input_ledger = tuple(_ledger_entry(item) for item in raw_input_ledger)
     capabilities = generation_profile_capabilities_from_json(raw_capabilities)
-    if capabilities != solo_piano_3m_v2_capabilities():
-        raise ValueError("saved phase-7 capabilities do not match the current profile")
+    if capabilities != solo_piano_3m_v2_capabilities(pedal_vocabulary_version(pedal_contract)):
+        raise ValueError("saved phase-7 capabilities do not match the saved contract")
     expected_input_hashes = {
         "input_script_sha256": sha256_json(document),
         "input_piece_plan_sha256": sha256_json(asdict(plan)),
@@ -146,6 +152,7 @@ def load_complete_phase7_run(run_dir: str | Path) -> LoadedPhase7Run:
         built.performance,
         physical_key_contract=schema_version >= 2,
         timing_contract=timing_contract,
+        pedal_contract=pedal_contract,
     )
     rendered_json = rendered_performance_to_json(
         rendered,

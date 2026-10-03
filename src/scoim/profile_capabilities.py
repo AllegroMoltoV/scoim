@@ -361,8 +361,12 @@ def check_generation_profile_document(
 
 
 @cache
-def solo_piano_3m_v2_capabilities() -> GenerationProfileCapabilities:
+def solo_piano_3m_v2_capabilities(
+    vocabulary_version: str = "0.2.0",
+) -> GenerationProfileCapabilities:
     """Return the single source of profile capability truth for the v2 vertical slice."""
+    if vocabulary_version not in {"0.1.0", "0.2.0"}:
+        raise ValueError(f"unsupported performance vocabulary: {vocabulary_version}")
     return GenerationProfileCapabilities(
         profile_id="solo_piano_3m_v2",
         instrumentation="solo_piano",
@@ -371,7 +375,7 @@ def solo_piano_3m_v2_capabilities() -> GenerationProfileCapabilities:
         minimum_material_placements_per_leaf=1,
         maximum_material_placements_per_leaf=None,
         performance_direction_target_types=frozenset({"section"}),
-        performance_choice_vocabulary_version="0.1.0",
+        performance_choice_vocabulary_version=vocabulary_version,
         performance_aspects=(
             PerformanceAspectCapability(
                 aspect_id="timing",
@@ -447,8 +451,21 @@ def solo_piano_3m_v2_capabilities() -> GenerationProfileCapabilities:
                         "pedal_profile",
                         _choices(
                             ("none", "サステインペダルを使わない。"),
-                            ("phrase_legato", "フレーズのまとまりで踏み替える。"),
-                            ("harmony_legato", "和声の変化に合わせて踏み替える。"),
+                            (
+                                "phrase_legato",
+                                "フレーズのまとまりで踏み替える。"
+                                if vocabulary_version == "0.1.0"
+                                else "フレーズを支え、和音変更で解放し、次の実打鍵後に踏み直す。",
+                            ),
+                            (
+                                "harmony_legato",
+                                "和声の変化に合わせて踏み替える。"
+                                if vocabulary_version == "0.1.0"
+                                else (
+                                    "各和声項目末で解放し、"
+                                    "同じ和音の反復でも次の実打鍵後に踏み直す。"
+                                ),
+                            ),
                         ),
                     ),
                 ),

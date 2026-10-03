@@ -247,24 +247,24 @@ def _realize_phases(
         phase7 = realize_phase7(Phase7Request(score_dir), runner, phase7_dir)
         if not phase7.realized:
             return phase7.issues
-    load_complete_phase7_run(phase7_dir)
+    loaded_phase7 = load_complete_phase7_run(phase7_dir)
+    if loaded_phase7.phase7_schema_version != 4:
+        raise ValueError("new realization requires phase-7 schema version 4")
 
-    if trial_dir.exists():
-        verified = verify_phase8_bundle(trial_dir)
-        return None if verified.valid else verified.issues
-    created = create_phase8_bundle(
-        Phase8BundleRequest(
-            phase7_run_dir=phase7_dir,
-            phase_run_dirs={
-                "phase3": phase3_dir,
-                "score": score_dir,
-            },
-            composition_id=composition_id,
-            trial_id=trial_id,
-            composition_manifest=(composition / "manifest.json").read_bytes(),
-        ),
-        trial_dir,
+    request = Phase8BundleRequest(
+        phase7_run_dir=phase7_dir,
+        phase_run_dirs={
+            "phase3": phase3_dir,
+            "score": score_dir,
+        },
+        composition_id=composition_id,
+        trial_id=trial_id,
+        composition_manifest=(composition / "manifest.json").read_bytes(),
     )
+    if trial_dir.exists():
+        verified = verify_phase8_bundle(trial_dir, expected_request=request)
+        return None if verified.valid else verified.issues
+    created = create_phase8_bundle(request, trial_dir)
     return None if created.created else created.issues
 
 
@@ -289,7 +289,14 @@ def _model_record_issues(
     run_dir: Path,
     phase_name: str,
 ) -> tuple[ValidationIssue, ...]:
-    checked = check_finite_model_operation_records(run_dir)
+    expected = None
+    if _is_complete(run_dir):
+        expected = _read_object(run_dir / "run-spec.json").get("operation_order")
+        if not isinstance(expected, list):
+            return (
+                _issue(IssueCode.LINEAGE_MISMATCH, "saved operation order is invalid", "/run-spec"),
+            )
+    checked = check_finite_model_operation_records(run_dir, expected_operation_ids=expected)
     return tuple(
         ValidationIssue(
             IssueCode.LINEAGE_MISMATCH,

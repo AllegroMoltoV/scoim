@@ -30,7 +30,8 @@ def test_public_v2_run_initializes_its_identity_with_the_output_root(tmp_path: P
     assert result.resumed is False
     record = json.loads((output / "public-run.json").read_text(encoding="utf-8"))
     assert record == {
-        "schema_version": 4,
+        "schema_version": 5,
+        "pedal_contract": "harmony-release-attack-v1",
         "timing_contract": "quantized-score-v1",
         "generation_context_contract": "section-range-context-v1",
         "operation": "scoim-public-v2-realization",

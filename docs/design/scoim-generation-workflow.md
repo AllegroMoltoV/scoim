@@ -299,7 +299,7 @@ LLMは、自由記述、指示が指定する演奏要素、対象区分の楽�
 
 ### 最終bundle
 
-最終bundle処理はLLMを呼ばない。検査済みの`ScoreSpec`からMusicXMLを、検査済みの`RenderedPerformance`からSMFを生成する。両方を再読込みし、音符、演奏時刻、velocity、ペダル、全体時間、hashを照合する。入力、全attempt、検査結果、投影台帳、最終成果物を一つの生成試行bundleとして確定する。
+最終bundle処理はLLMを呼ばない。検査済みの`ScoreSpec`からMusicXMLを、検査済みの`RenderedPerformance`からSMFを生成する。両方を再読込みし、音符、演奏時刻、velocity、ペダル、全体時間、hashを照合する。入力、全attempt、検査結果、投影台帳、最終成果物を一つの生成試行bundleとして確定する。現行bundleは版6、演奏段階は版4を使い、和声境界の解放と実打鍵後の踏込みを行うペダル契約を固定する。版の対応と旧完成bundleの再生は[生成ランタイム](solo-piano-generation-runtime.md#保存と再開)に従う。
 
 生成試行bundleは、試行ID、構成ID、元の構成manifestのbytesとそのSHA-256を保存する。生成時には元の構成bundle全体を検査する。通信なし再生時には複写した構成manifestからSHA-256を再計算するが、元の構成bundleが手元にない場合、その全ファイルまで再検証したとは扱わない。
 

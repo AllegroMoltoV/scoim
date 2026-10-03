@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -30,6 +31,7 @@ from .score_rendering import (
 )
 from .score_state import load_complete_score_run
 from .score_timing import QUANTIZED_TIMING
+from .script_0_4_validation import script_0_4_content_sha256
 from .validation import CheckResult, IssueCode, ValidationIssue
 
 _PHASE_NAMES = ("phase3", "phase4", "phase5", "phase6", "phase7")
@@ -59,9 +61,17 @@ class Phase8ReplayResult:
     issues: tuple[ValidationIssue, ...]
 
 
-def verify_phase8_bundle(bundle_dir: str | Path) -> CheckResult:
+def verify_phase8_bundle(
+    bundle_dir: str | Path, *, expected_request: Phase8BundleRequest | None = None
+) -> CheckResult:
     """Verify one final v2 bundle without creating replay artifacts."""
-    issues = _verify_bundle(Path(bundle_dir).resolve())
+    bundle = Path(bundle_dir).resolve()
+    issues = _verify_bundle(bundle)
+    if not issues and expected_request is not None:
+        try:
+            _require_request_lineage(bundle, expected_request)
+        except (KeyError, OSError, TypeError, ValueError) as error:
+            issues = (ValidationIssue(IssueCode.LINEAGE_MISMATCH, str(error), "/bundle"),)
     return CheckResult(not issues, issues)
 
 
@@ -123,15 +133,16 @@ def create_phase8_bundle(
         loaded = load_complete_phase7_run(phase_dirs["phase7"])
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.SEMANTIC_INVALID, str(error), target)
-    if loaded.phase7_schema_version != 3:
+    if loaded.phase7_schema_version != 4:
         return _bundle_failure(
             IssueCode.LINEAGE_MISMATCH,
-            "a schema-version-5 bundle requires phase-7 schema version 3",
+            "a schema-version-6 bundle requires phase-7 schema version 4",
             target,
         )
 
     try:
         _require_score_lineage(phase_dirs)
+        _require_composition_script(composition_manifest, loaded.validated_script, required=True)
     except (KeyError, OSError, TypeError, ValueError) as error:
         return _bundle_failure(IssueCode.LINEAGE_MISMATCH, str(error), target)
 
@@ -190,7 +201,7 @@ def create_phase8_bundle(
         }
         manifest = {
             "bundle_type": "scoim-generation-trial",
-            "schema_version": 5,
+            "schema_version": 6,
             "target_profile": "solo_piano_3m_v2",
             "composition_id": request.composition_id,
             "trial_id": request.trial_id,
@@ -218,6 +229,11 @@ def replay_phase8_bundle(bundle_dir: str | Path, destination: str | Path) -> Pha
     """Regenerate MusicXML and SMF from a verified bundle without model access."""
     bundle = Path(bundle_dir).resolve()
     target = Path(destination).resolve()
+    if target.is_relative_to(bundle):
+        return _replay_failure(
+            IssueCode.STORAGE_CONFLICT,
+            "replay output must be outside the source bundle",
+        )
     if target.exists():
         return _replay_failure(IssueCode.STORAGE_CONFLICT, "replay output exists")
     issues = _verify_bundle(bundle)
@@ -260,7 +276,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         schema_version = manifest.get("schema_version")
         if (
             manifest.get("bundle_type") != "scoim-generation-trial"
-            or schema_version not in {1, 2, 3, 4, 5}
+            or schema_version not in {1, 2, 3, 4, 5, 6}
             or manifest.get("target_profile") != "solo_piano_3m_v2"
         ):
             raise ValueError("bundle identity is invalid")
@@ -278,7 +294,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
         loaded = load_complete_phase7_run(bundle / "model-runs" / "phase7")
         if schema_version == 3 and loaded.phase7_schema_version != 2:
             raise ValueError("a schema-version-3 bundle requires phase-7 schema version 2")
-        phase_names = _SCORE_PHASE_NAMES if schema_version == 5 else _PHASE_NAMES
+        phase_names = _SCORE_PHASE_NAMES if schema_version in {5, 6} else _PHASE_NAMES
         for phase_name in phase_names:
             operation_records = check_finite_model_operation_records(
                 bundle / "model-runs" / phase_name
@@ -303,15 +319,18 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
             _require_current_timing_lineage(
                 {name: bundle / "model-runs" / name for name in _PHASE_NAMES}
             )
-        if schema_version == 5:
-            if loaded.phase7_schema_version != 3:
-                raise ValueError("bundle v5 requires phase7 v3")
+        if schema_version in {5, 6}:
+            expected_phase7 = 3 if schema_version == 5 else 4
+            if loaded.phase7_schema_version != expected_phase7:
+                raise ValueError(f"bundle v{schema_version} requires phase7 v{expected_phase7}")
             _require_score_lineage(
                 {name: bundle / "model-runs" / name for name in _SCORE_PHASE_NAMES}
             )
-        if schema_version in {1, 2} and loaded.phase7_schema_version == 3:
+        else:
+            _require_legacy_lineage({name: bundle / "model-runs" / name for name in _PHASE_NAMES})
+        if schema_version in {1, 2} and loaded.phase7_schema_version >= 3:
             raise ValueError("old bundles cannot contain the current timing contract")
-        if schema_version in {2, 3, 4, 5}:
+        if schema_version in {2, 3, 4, 5, 6}:
             composition_id = manifest.get("composition_id")
             trial_id = manifest.get("trial_id")
             composition_manifest_bytes = (
@@ -332,6 +351,9 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
                 != sha256_bytes(composition_manifest_bytes)
             ):
                 raise ValueError("composition manifest lineage does not match")
+            _require_composition_script(
+                composition_manifest, loaded.validated_script, required=schema_version == 6
+            )
         checks = _read_object(bundle / "checks.json")
         if any(
             cast(Mapping[str, object], value).get("status") != "passed" for value in checks.values()
@@ -343,6 +365,7 @@ def _verify_bundle(bundle: Path) -> tuple[ValidationIssue, ...]:
 
 
 def _require_score_lineage(phase_dirs: Mapping[str, Path]) -> None:
+    _require_complete_phases(phase_dirs)
     score = load_complete_score_run(phase_dirs["score"])
     phase7 = load_complete_phase7_run(phase_dirs["phase7"])
     for phase in _SCORE_PHASE_NAMES:
@@ -359,13 +382,108 @@ def _require_score_lineage(phase_dirs: Mapping[str, Path]) -> None:
         ("score", "outputs/projection-ledger.json", "phase7", "inputs/projection-ledger.json"),
         ("score", "inputs/validated-script.json", "phase7", "inputs/validated-script.json"),
     )
+    _require_json_links(phase_dirs, links)
+    if score.score != phase7.score or score.phase3.plan.piece_plan != phase7.plan:
+        raise ValueError("bundle score and performance inputs differ")
+
+
+def _require_json_links(
+    phase_dirs: Mapping[str, Path], links: tuple[tuple[str, str, str, str], ...]
+) -> None:
     for source, source_path, target, target_path in links:
         source_json = json.loads((phase_dirs[source] / source_path).read_text(encoding="utf-8"))
         target_json = json.loads((phase_dirs[target] / target_path).read_text(encoding="utf-8"))
         if source_json != target_json:
-            raise ValueError(f"bundle score lineage differs: {source_path} -> {target_path}")
-    if score.score != phase7.score or score.phase3.plan.piece_plan != phase7.plan:
-        raise ValueError("bundle score and performance inputs differ")
+            raise ValueError(
+                f"bundle phase lineage differs: {source}/{source_path} -> {target}/{target_path}"
+            )
+
+
+def _require_complete_phases(phase_dirs: Mapping[str, Path]) -> None:
+    for phase, root in phase_dirs.items():
+        for filename in ("realization.json", f"{phase}-state.json"):
+            if _read_object(root / "outputs" / filename).get("outcome") != "complete":
+                raise ValueError(f"{phase} is not complete")
+        if phase != "phase6":
+            spec = _read_object(root / "run-spec.json")
+            if not isinstance(spec.get("operation_order"), list):
+                raise ValueError(f"{phase} operation order is missing or invalid")
+            checked = check_finite_model_operation_records(
+                root, expected_operation_ids=spec["operation_order"]
+            )
+            if not checked.valid:
+                raise ValueError(
+                    f"{phase} model operation record is invalid: {checked.issues[0].message}"
+                )
+
+
+def _require_legacy_lineage(phase_dirs: Mapping[str, Path]) -> None:
+    _require_complete_phases(phase_dirs)
+    links = [
+        ("phase3", "outputs/phase3-state.json", phase, "inputs/phase3-state.json")
+        for phase in ("phase4", "phase5", "phase6")
+    ]
+    links.extend(
+        ("phase4", "outputs/phase4-state.json", phase, "inputs/phase4-state.json")
+        for phase in ("phase5", "phase6")
+    )
+    links.append(("phase5", "outputs/phase5-state.json", "phase6", "inputs/phase5-state.json"))
+    links.extend(
+        (source, "outputs/projection-ledger.json", target, "inputs/projection-ledger.json")
+        for source, target in pairwise(_PHASE_NAMES)
+    )
+    links.extend(
+        [
+            ("phase6", "outputs/score-spec.json", "phase7", "inputs/score-spec.json"),
+            ("phase3", "outputs/piece-plan.json", "phase7", "inputs/piece-plan.json"),
+        ]
+    )
+    links.extend(
+        ("phase3", "inputs/validated-script.json", phase, "inputs/validated-script.json")
+        for phase in _PHASE_NAMES[1:]
+    )
+    _require_json_links(phase_dirs, tuple(links))
+
+
+def _require_composition_script(
+    manifest: Mapping[str, object], script: Mapping[str, object], *, required: bool
+) -> None:
+    field = "validated_script_content_sha256"
+    if (required or field in manifest) and manifest.get(field) != script_0_4_content_sha256(script):
+        raise ValueError("composition manifest script hash differs")
+
+
+def _require_request_lineage(bundle: Path, request: Phase8BundleRequest) -> None:
+    manifest = _read_object(bundle / "manifest.json")
+    if (
+        manifest.get("schema_version") != 6
+        or manifest.get("composition_id") != request.composition_id
+        or manifest.get("trial_id") != request.trial_id
+        or (bundle / "lineage/composition-manifest.json").read_bytes()
+        != request.composition_manifest
+    ):
+        raise ValueError("saved bundle identity differs from the current request")
+    phase_dirs = {
+        **{name: Path(path).resolve() for name, path in request.phase_run_dirs.items()},
+        "phase7": Path(request.phase7_run_dir).resolve(),
+    }
+    if set(phase_dirs) != set(_SCORE_PHASE_NAMES):
+        raise ValueError("current phase directories differ")
+    _require_score_lineage(phase_dirs)
+    for phase, root in phase_dirs.items():
+        prefix = f"model-runs/{phase}/"
+        saved = {
+            name.removeprefix(prefix): digest
+            for name, digest in manifest["files"].items()
+            if name.startswith(prefix)
+        }
+        current = {
+            path.relative_to(root).as_posix(): sha256_file(path)
+            for path in root.rglob("*")
+            if path.is_file()
+        }
+        if current != saved:
+            raise ValueError(f"saved bundle {phase} differs from the current run")
 
 
 def _require_current_timing_lineage(phase_dirs: Mapping[str, Path]) -> None:

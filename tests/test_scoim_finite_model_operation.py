@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from llm_musical_composer.run_state import RunStore, StateConflictError, sha256_bytes
+from llm_musical_composer.run_state import (
+    RunStore,
+    StateConflictError,
+    sha256_bytes,
+)
 from scoim.finite_model_operation import (
     check_finite_model_operation_records,
     execute_finite_model_operation,
@@ -58,6 +62,140 @@ _SCHEMA: dict[str, object] = {
     "required": ["value"],
     "properties": {"value": {"type": "integer", "minimum": 1}},
 }
+
+
+@pytest.mark.parametrize(
+    "raw_response, legacy_resume_record",
+    [
+        (b'{"value":0}', False),
+        (b'{\n  "value": 0\n}\n', False),
+        (b'{"value":1}', False),
+        (b'{\n  "value": 1\n}\n', False),
+        (b"[]", False),
+        (b"{", False),
+        (b"\xff", False),
+        (b'{"value":0}', True),
+        (b'{"value":1}', True),
+    ],
+    ids=[
+        "schema-compact",
+        "schema-canonical",
+        "content-compact",
+        "content-canonical",
+        "non-object",
+        "invalid-json",
+        "invalid-utf8",
+        "legacy-schema",
+        "legacy-content",
+    ],
+)
+def test_finite_model_operation_resumes_after_repair_record_was_saved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    raw_response: bytes,
+    legacy_resume_record: bool,
+) -> None:
+    store = RunStore(tmp_path / "run", max_calls=2)
+    store.initialize({"max_calls": 2})
+
+    class RawRunner:
+        calls = 0
+
+        def run(self, prompt: str, response_schema_path: Path) -> ProposalRun:
+            self.calls += 1
+            return ProposalRun("fixed", "fixed", {}, True, "completed", raw_response, b"", b"", ())
+
+    class StopAfterRepairRecord(RuntimeError):
+        pass
+
+    def validate(response: dict[str, object]) -> tuple[ValidationIssue, ...]:
+        if response["value"] == 1:
+            return (ValidationIssue(IssueCode.SEMANTIC_INVALID, "change value", "/value"),)
+        return ()
+
+    original_snapshot = store.snapshot_json
+
+    def interrupted_snapshot(relative: str | Path, value: object) -> Path:
+        if str(relative) == "repairs/test-operation.json" and legacy_resume_record:
+            value = {**value, "source_response_sha256": sha256_bytes(raw_response)}
+        saved = original_snapshot(relative, value)
+        if str(relative) == "repairs/test-operation.json":
+            raise StopAfterRepairRecord
+        return saved
+
+    arguments = {
+        "store": store,
+        "operation_id": "test-operation",
+        "prompt": "return a value",
+        "schema": _SCHEMA,
+        "immutable_input": {"source": "test"},
+        "validate_content": validate,
+    }
+    initial_runner = RawRunner()
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "snapshot_json", interrupted_snapshot)
+        with pytest.raises(StopAfterRepairRecord):
+            execute_finite_model_operation(**arguments, runner=initial_runner)
+
+    assert initial_runner.calls == 1
+    assert len(store.attempt_dirs("test-operation")) == 1
+    saved_files = {
+        path: path.read_bytes()
+        for directory in (store.run_dir / "repairs", store.run_dir / "attempts")
+        for path in directory.rglob("*")
+        if path.is_file()
+    }
+    resumed_runner = SequencedRunner([{"value": 2}])
+    resumed = execute_finite_model_operation(**arguments, runner=resumed_runner)
+    assert resumed.outcome == "complete"
+    assert resumed.response == {"value": 2}
+    assert resumed.repaired
+    assert len(resumed_runner.prompts) == 1
+    assert len(store.attempt_dirs("test-operation")) == 2
+    assert all(path.read_bytes() == contents for path, contents in saved_files.items())
+    assert check_finite_model_operation_records(store.run_dir).valid
+    reused_runner = SequencedRunner([])
+    reused = execute_finite_model_operation(**arguments, runner=reused_runner)
+    assert reused == resumed
+    assert reused_runner.prompts == []
+
+
+@pytest.mark.parametrize("field", ["source_response_sha256", "policy_id", "issues"])
+def test_finite_model_operation_rejects_a_changed_saved_repair(tmp_path: Path, field: str) -> None:
+    store = RunStore(tmp_path / "run", max_calls=2)
+    store.initialize({"max_calls": 2})
+    arguments = {
+        "store": store,
+        "operation_id": "test-operation",
+        "prompt": "return a value",
+        "schema": _SCHEMA,
+        "immutable_input": {"source": "test"},
+        "validate_content": lambda _response: (),
+    }
+    attempt = store.reserve_attempt("test-operation", {"request": "test"}, "return a value")
+    raw = b'{"value":0}'
+    (attempt / "response.staged.json").write_bytes(raw)
+    store.finalize_attempt(attempt, "completed", returncode=0, response_sha256=sha256_bytes(raw))
+    record = {
+        "policy_id": "whole-response-content-repair-v1",
+        "source_response_sha256": sha256_bytes(raw),
+        "issues": [
+            {
+                "code": "model_output_invalid",
+                "message": "0 is less than the minimum of 1",
+                "path": "/value",
+            }
+        ],
+    }
+    record[field] = [] if field == "issues" else "changed"
+    saved = store.snapshot_json("repairs/test-operation.json", record)
+    before = saved.read_bytes()
+    runner = SequencedRunner([])
+    with pytest.raises(StateConflictError, match="input snapshot"):
+        execute_finite_model_operation(**arguments, runner=runner)
+    assert saved.read_bytes() == before
+    assert runner.prompts == []
+    assert len(store.attempt_dirs("test-operation")) == 1
 
 
 def test_finite_model_operation_accepts_a_valid_response_once(tmp_path: Path) -> None:
@@ -340,6 +478,39 @@ def test_finite_model_operation_records_can_be_checked_without_a_model(
     assert not invalid.valid
     assert invalid.issues[0].code is IssueCode.LINEAGE_MISMATCH
     assert invalid.issues[0].path.endswith("/validation.json")
+
+
+@pytest.mark.parametrize("corruption", ["failed", "terminal-hash", "validation-hash", "missing"])
+def test_accepted_operation_requires_a_matching_completed_attempt(tmp_path, corruption):
+    store = RunStore(tmp_path / "run", max_calls=3)
+    store.initialize({"max_calls": 3})
+    abandoned = store.reserve_attempt("abandoned-operation", {}, "abandoned")
+    store.finalize_attempt(abandoned, "failed", returncode=1)
+    result = execute_finite_model_operation(
+        store=store,
+        operation_id="test-operation",
+        prompt="return a value",
+        schema=_SCHEMA,
+        immutable_input={},
+        runner=SequencedRunner([{"value": 1}]),
+        validate_content=lambda _response: (),
+    )
+    assert result.outcome == "complete"
+    assert check_finite_model_operation_records(store.run_dir).valid
+    attempt = store.attempt_dirs("test-operation")[0]
+    path = attempt / ("validation.json" if corruption == "validation-hash" else "terminal.json")
+    if corruption == "missing":
+        path.unlink()
+    else:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        if corruption == "failed":
+            record["status"] = "failed"
+        else:
+            record["response_sha256"] = "0" * 64
+        path.write_text(json.dumps(record), encoding="utf-8")
+    checked = check_finite_model_operation_records(store.run_dir)
+    assert not checked.valid
+    assert all(issue.code is IssueCode.LINEAGE_MISMATCH for issue in checked.issues)
 
 
 def test_finite_model_operation_record_rejects_an_attempt_from_another_operation(

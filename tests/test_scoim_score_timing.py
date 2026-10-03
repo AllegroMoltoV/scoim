@@ -9,6 +9,7 @@ import pytest
 import rfc8785
 from test_scoim_phase3_realization import SequencedRunner, _document, _phase2_ledger, _responses
 from test_scoim_phase7_state import _phase7_run
+from test_scoim_phase8_bundle import _composition_manifest
 
 from llm_musical_composer.run_state import sha256_file, sha256_json
 from scoim.performance_ir import dataclass_content_sha256
@@ -197,14 +198,7 @@ def test_tiny_ratio_difference_survives_phase3_to_bundle_replay_with_saved_hashe
         phase_run_dirs={"phase3": tmp_path / "phase3", "score": tmp_path / "score"},
         composition_id="composition-001",
         trial_id="trial-001",
-        composition_manifest=json.dumps(
-            {
-                "bundle_type": "composition",
-                "schema_version": 3,
-                "target_profile": "solo_piano_3m_v2",
-                "composition_id": "composition-001",
-            }
-        ).encode(),
+        composition_manifest=_composition_manifest(phase7_dir),
     )
     created = create_phase8_bundle(request, bundle_dir)
 

@@ -9,9 +9,12 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import mido
+
+if TYPE_CHECKING:
+    from .performance_timing import SparseTimeMap
 
 TICKS_PER_BEAT = 500
 TEMPO = 500_000
@@ -725,6 +728,7 @@ def render_role_neutral_performance_with_pedal_sources(
     *,
     group_same_key_onsets: bool = False,
     integrated_timing: bool = False,
+    attack_aware_pedal: bool = False,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     """Render without role inference and return each pedal event's originating leaf."""
     _validate_pipeline_stages(
@@ -739,6 +743,7 @@ def render_role_neutral_performance_with_pedal_sources(
         performance,
         group_same_key_onsets=group_same_key_onsets,
         integrated_timing=integrated_timing,
+        attack_aware_pedal=attack_aware_pedal,
     )
 
 
@@ -755,6 +760,7 @@ def _render_performance_unchecked_with_pedal_sources(
     *,
     group_same_key_onsets: bool = False,
     integrated_timing: bool = False,
+    attack_aware_pedal: bool = False,
 ) -> tuple[RenderedPerformance, dict[str, str]]:
     leaves, intervals = ordered_leaf_schedule(plan, score)
     materials = {material.material_id: material for material in score.materials}
@@ -875,6 +881,58 @@ def _render_performance_unchecked_with_pedal_sources(
                     voice=note.voice,
                 )
             )
+    if attack_aware_pedal:
+        pedals, pedal_source_node_ids = _render_attack_aware_pedals(
+            leaves, materials, node_by_id, performance_by_node, time_map, notes
+        )
+    else:
+        pedals, pedal_source_node_ids = _render_legacy_pedals(
+            leaves, materials, node_by_id, performance_by_node, time_map
+        )
+    final_up = PerformedPedal(
+        "pedal-final-up",
+        plan.root_node_id,
+        performance.target_duration_ms,
+        0,
+    )
+    pedals.append(final_up)
+    pedal_source_node_ids[final_up.event_id] = final_leaf_id
+    return (
+        RenderedPerformance(
+            performance_id=performance.performance_id,
+            title=plan.title,
+            duration_ms=performance.target_duration_ms,
+            notes=tuple(sorted(notes, key=lambda item: (item.at_ms, item.voice, item.pitch))),
+            pedals=tuple(sorted(pedals, key=lambda item: (item.at_ms, item.value, item.event_id))),
+            harmonies=tuple(rendered_harmonies),
+            node_intervals=tuple(
+                (
+                    node.node_id,
+                    time_map[intervals[node.node_id][0]],
+                    time_map[intervals[node.node_id][1]],
+                )
+                for node in plan.nodes
+            ),
+            lineage=(
+                hashlib.sha256(repr(plan).encode("utf-8")).hexdigest(),
+                hashlib.sha256(repr(score).encode("utf-8")).hexdigest(),
+                hashlib.sha256(
+                    _performance_lineage_source(performance).encode("utf-8")
+                ).hexdigest(),
+            ),
+        ),
+        pedal_source_node_ids,
+    )
+
+
+def _render_legacy_pedals(
+    leaves: list[tuple[PlanNode, int, int]],
+    materials: dict[str, ScoreMaterial],
+    node_by_id: dict[str, PlanNode],
+    performance_by_node: dict[str, NodePerformance],
+    time_map: list[int] | SparseTimeMap,
+) -> tuple[list[PerformedPedal], dict[str, str]]:
+    """Preserve saved v1 and v2 vocabulary 0.1.0 pedal events exactly."""
     pedal_segments: list[tuple[str | None, str, int, int, ScoreMaterial, str]] = []
     for leaf, start_unit, end_unit in leaves:
         owner, profile = resolve_effective_profile(
@@ -952,40 +1010,65 @@ def _render_performance_unchecked_with_pedal_sources(
         up = PerformedPedal(f"pedal-{index}-up", owner, release, 0)
         pedals.append(up)
         pedal_source_node_ids[up.event_id] = source_node_id
-    final_up = PerformedPedal(
-        "pedal-final-up",
-        plan.root_node_id,
-        performance.target_duration_ms,
-        0,
-    )
-    pedals.append(final_up)
-    pedal_source_node_ids[final_up.event_id] = final_leaf_id
-    return (
-        RenderedPerformance(
-            performance_id=performance.performance_id,
-            title=plan.title,
-            duration_ms=performance.target_duration_ms,
-            notes=tuple(sorted(notes, key=lambda item: (item.at_ms, item.voice, item.pitch))),
-            pedals=tuple(sorted(pedals, key=lambda item: (item.at_ms, item.value, item.event_id))),
-            harmonies=tuple(rendered_harmonies),
-            node_intervals=tuple(
-                (
-                    node.node_id,
-                    time_map[intervals[node.node_id][0]],
-                    time_map[intervals[node.node_id][1]],
+    return pedals, pedal_source_node_ids
+
+
+def _render_attack_aware_pedals(
+    leaves: list[tuple[PlanNode, int, int]],
+    materials: dict[str, ScoreMaterial],
+    node_by_id: dict[str, PlanNode],
+    performance_by_node: dict[str, NodePerformance],
+    time_map: list[int] | SparseTimeMap,
+    notes: list[PerformedNote],
+) -> tuple[list[PerformedPedal], dict[str, str]]:
+    """Resolve all leaf harmonies before coalescing inherited phrase holds."""
+    from .performance_timing import TimingResolutionError
+
+    # owner, profile, harmony identity, start, end, originating leaf
+    spans: list[tuple[str, str, tuple[int, str], int, int, str]] = []
+    for leaf, start, _ in leaves:
+        owner, profile = resolve_effective_profile(
+            leaf, node_by_id, performance_by_node, "pedal_profile", "none"
+        )
+        if profile == "none":
+            continue
+        assert owner is not None and leaf.score_material_id is not None
+        material = materials[leaf.score_material_id]
+        if not material.harmonies:
+            _fail(f"{profile} requires score harmony")
+        for harmony in material.harmonies:
+            identity = (harmony.root_pitch_class, harmony.quality)
+            onset = start + harmony.at_units
+            end = onset + harmony.duration_units
+            if (
+                profile == "phrase_legato"
+                and spans
+                and spans[-1][:3] == (owner, profile, identity)
+                and spans[-1][4] == onset
+            ):
+                previous = spans[-1]
+                spans[-1] = (*previous[:4], end, previous[5])
+            else:
+                spans.append((owner, profile, identity, onset, end, leaf.node_id))
+    pedals: list[PerformedPedal] = []
+    sources: dict[str, str] = {}
+    for index, (owner, _, _, start, end, source) in enumerate(spans):
+        start_ms, end_ms = time_map[start], time_map[end]
+        attacks = [note for note in notes if start_ms <= note.at_ms < end_ms]
+        if attacks:
+            first = min(attacks, key=lambda note: (note.at_ms, note.event_id))
+            down_ms = min(first.at_ms + 80, end_ms - 1)
+            if down_ms <= first.at_ms:
+                raise TimingResolutionError(
+                    "a pedal depression cannot fit after its attack and before release"
                 )
-                for node in plan.nodes
-            ),
-            lineage=(
-                hashlib.sha256(repr(plan).encode("utf-8")).hexdigest(),
-                hashlib.sha256(repr(score).encode("utf-8")).hexdigest(),
-                hashlib.sha256(
-                    _performance_lineage_source(performance).encode("utf-8")
-                ).hexdigest(),
-            ),
-        ),
-        pedal_source_node_ids,
-    )
+            down = PerformedPedal(f"pedal-{index}-down", owner, down_ms, 127)
+            pedals.append(down)
+            sources[down.event_id] = first.occurrence_node_id
+        up = PerformedPedal(f"pedal-{index}-up", owner, end_ms, 0)
+        pedals.append(up)
+        sources[up.event_id] = source
+    return pedals, sources
 
 
 def _velocity_summary(values: list[int]) -> dict[str, object]:

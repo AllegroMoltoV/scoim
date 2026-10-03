@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,10 +35,20 @@ class FiniteModelOperationResult:
     issues: tuple[ValidationIssue, ...]
 
 
-def check_finite_model_operation_records(run_dir: str | Path) -> CheckResult:
+def check_finite_model_operation_records(
+    run_dir: str | Path, *, expected_operation_ids: Sequence[str] | None = None
+) -> CheckResult:
     """Check saved attempt hashes, validation records, and acceptance links offline."""
     root = Path(run_dir).resolve()
     issues: list[ValidationIssue] = []
+    accepted_paths = sorted((root / "events").glob("*/accepted.json"))
+    if expected_operation_ids is not None and (
+        not isinstance(expected_operation_ids, (list, tuple))
+        or any(not isinstance(item, str) for item in expected_operation_ids)
+        or len(set(expected_operation_ids)) != len(expected_operation_ids)
+        or {path.parent.name for path in accepted_paths} != set(expected_operation_ids)
+    ):
+        issues.append(_lineage_issue(root, root / "events", "accepted operations differ"))
     attempts_by_relative_path: dict[str, Path] = {}
     for attempt in sorted((root / "attempts").glob("*/attempt-*")):
         if not attempt.is_dir():
@@ -65,7 +75,7 @@ def check_finite_model_operation_records(run_dir: str | Path) -> CheckResult:
         ):
             issues.append(_lineage_issue(root, validation_path, "result is invalid"))
 
-    for accepted_path in sorted((root / "events").glob("*/accepted.json")):
+    for accepted_path in accepted_paths:
         accepted = _load_record_for_check(root, accepted_path, issues)
         if accepted is None:
             continue
@@ -85,6 +95,13 @@ def check_finite_model_operation_records(run_dir: str | Path) -> CheckResult:
             issues.append(_lineage_issue(root, raw_path, "accepted response is missing"))
             continue
         response_sha256 = sha256_bytes(raw_path.read_bytes())
+        terminal_path = attempt / "terminal.json"
+        terminal = _load_record_for_check(root, terminal_path, issues)
+        if terminal is not None and (
+            terminal.get("status") != "completed"
+            or terminal.get("response_sha256") != response_sha256
+        ):
+            issues.append(_lineage_issue(root, terminal_path, "accepted attempt did not complete"))
         if accepted.get("response_sha256") != response_sha256:
             issues.append(_lineage_issue(root, accepted_path, "response hash differs"))
         decoded, decode_issues = _decode_response(raw_path.read_bytes())
@@ -92,7 +109,9 @@ def check_finite_model_operation_records(run_dir: str | Path) -> CheckResult:
             issues.append(_lineage_issue(root, accepted_path, "response differs from attempt"))
         validation = _load_record_for_check(root, validation_path, issues)
         if validation is not None and (
-            validation.get("status") != "valid" or validation.get("issues") != []
+            validation.get("status") != "valid"
+            or validation.get("issues") != []
+            or validation.get("response_sha256") != response_sha256
         ):
             issues.append(_lineage_issue(root, validation_path, "accepted result is not valid"))
         if validation is not None and (
@@ -163,6 +182,18 @@ def execute_finite_model_operation(
             )
         if len(attempts) > 1:
             return FiniteModelOperationResult("content_invalid", None, True, recovered_issues)
+        repair_source_sha256 = (
+            sha256_json(recovered_response)
+            if recovered_response is not None
+            else sha256_bytes(raw_response)
+        )
+        repair_path = store.run_dir / "repairs" / f"{operation_id}.json"
+        if recovered_response is not None and repair_path.is_file():
+            saved_repair = _read_record(repair_path, "repair")
+            # Earlier resume code stored the raw hash even for JSON objects.
+            # snapshot_json still checks the entire immutable repair record.
+            if saved_repair.get("source_response_sha256") == sha256_bytes(raw_response):
+                repair_source_sha256 = sha256_bytes(raw_response)
         return _repair_operation(
             store=store,
             operation_id=operation_id,
@@ -172,7 +203,7 @@ def execute_finite_model_operation(
                 if recovered_response is not None
                 else raw_response.decode("utf-8", errors="replace")
             ),
-            previous_response_sha256=sha256_bytes(raw_response),
+            previous_response_sha256=repair_source_sha256,
             issues=recovered_issues,
             schema=schema,
             immutable_input=immutable_input,

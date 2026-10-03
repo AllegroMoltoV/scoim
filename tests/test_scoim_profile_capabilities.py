@@ -52,7 +52,7 @@ def test_solo_piano_v2_capabilities_reject_role_aware_velocity_policies() -> Non
 def test_solo_piano_v2_capabilities_define_performance_aspects_and_choices() -> None:
     capabilities = solo_piano_3m_v2_capabilities()
 
-    assert capabilities.performance_choice_vocabulary_version == "0.1.0"
+    assert capabilities.performance_choice_vocabulary_version == "0.2.0"
     assert capabilities.performance_aspect_ids == (
         "timing",
         "dynamics",
@@ -83,7 +83,7 @@ def test_generation_profile_capabilities_round_trip_through_stable_json() -> Non
     assert encoded["material_placement_roles"] == ["accompaniment", "foreground"]
     assert encoded["performance_direction_target_types"] == ["section"]
     assert encoded["velocity_policy_ids"] == ["legacy-unison-v1"]
-    assert encoded["performance_choice_vocabulary_version"] == "0.1.0"
+    assert encoded["performance_choice_vocabulary_version"] == "0.2.0"
     assert decoded.performance_aspect_ids == capabilities.performance_aspect_ids
     assert "score_relations" not in encoded
     assert decoded.score_relations == capabilities.score_relations

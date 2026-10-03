@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from test_scoim_script_0_4_compilation import _structure_response_0_4
 import scoim.cli as cli_module
 from llm_musical_composer.run_state import sha256_file, sha256_json
 from scoim.cli import main
+from scoim.phase8_bundle import verify_phase8_bundle
 from scoim.proposal import ProposalRun
 from scoim.public_realization import realize
 from scoim.runner_identity import RunnerIdentity
@@ -210,8 +212,10 @@ def test_public_v2_realization_resumes_without_repeating_completed_model_calls(
     assert resumed_runner.calls == 0
 
 
+@pytest.mark.parametrize("corruption", ["validation", "failed", "accepted-missing"])
 def test_public_v2_realization_rejects_a_completed_phase_with_broken_model_records(
     tmp_path: Path,
+    corruption: str,
 ) -> None:
     composition = _composition_bundle(tmp_path)
     output = tmp_path / "output"
@@ -223,10 +227,19 @@ def test_public_v2_realization_rejects_a_completed_phase_with_broken_model_recor
         trial_id="trial-001",
     )
     assert first.succeeded is True, first.issues
-    validation_path = next(
-        (output / "realization-work" / "score" / "attempts").glob("*/attempt-*/validation.json")
-    )
-    validation_path.unlink()
+    if corruption == "validation":
+        path = next(
+            (output / "realization-work/score/attempts").glob("*/attempt-*/validation.json")
+        )
+        path.unlink()
+    elif corruption == "failed":
+        path = next((output / "realization-work/phase3/attempts").glob("*/attempt-*/terminal.json"))
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["status"] = "failed"
+        path.write_text(json.dumps(value), encoding="utf-8")
+    else:
+        for path in (output / "realization-work/phase3/events").glob("*/accepted.json"):
+            path.unlink()
     resumed_runner = PublicV2Runner([])
 
     resumed = realize(
@@ -240,6 +253,72 @@ def test_public_v2_realization_rejects_a_completed_phase_with_broken_model_recor
     assert resumed.succeeded is False
     assert resumed.issues[0].code is IssueCode.LINEAGE_MISMATCH
     assert resumed_runner.calls == 0
+
+
+@pytest.mark.parametrize("keep_trial", [False, True])
+def test_public_resume_rejects_a_different_completed_performance(tmp_path, keep_trial):
+    composition = _composition_bundle(tmp_path)
+    output = tmp_path / "output"
+    donor = tmp_path / "donor"
+    for directory, pitch in ((output, 72), (donor, 76)):
+        responses = _generation_responses()
+        responses[-1]["foregrounds"][0]["notes"][0]["pitch"] = pitch
+        result = realize(
+            composition,
+            directory,
+            runner=PublicV2Runner(responses),
+            model="fixed",
+            trial_id="trial-001",
+        )
+        assert result.succeeded, result.issues
+    phase7 = output / "realization-work/phase7"
+    phase7.rename(output / "original-phase7")
+    shutil.copytree(donor / "realization-work/phase7", phase7)
+    if not keep_trial:
+        (output / "trial").rename(output / "original-trial")
+    runner = PublicV2Runner([])
+    resumed = realize(composition, output, runner=runner, model="fixed", trial_id="trial-001")
+    assert not resumed.succeeded
+    assert resumed.issues[0].code is IssueCode.LINEAGE_MISMATCH
+    assert runner.calls == 0
+    assert (output / "trial").exists() == keep_trial
+
+
+@pytest.mark.parametrize("field", ["trial_id", "composition_id"])
+def test_public_resume_rejects_a_foreign_valid_trial(tmp_path, field):
+    from test_scoim_phase8_bundle import _refresh_bundle_inventory
+
+    from llm_musical_composer.run_state import sha256_bytes
+
+    composition = _composition_bundle(tmp_path)
+    output = tmp_path / "output"
+    initial = realize(
+        composition,
+        output,
+        runner=PublicV2Runner(_generation_responses()),
+        model="fixed",
+        trial_id="trial-001",
+    )
+    assert initial.succeeded, initial.issues
+    bundle = output / "trial"
+    manifest_path = bundle / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest[field] = "another-id"
+    if field == "composition_id":
+        path = bundle / "lineage/composition-manifest.json"
+        composition_manifest = json.loads(path.read_text(encoding="utf-8"))
+        composition_manifest[field] = "another-id"
+        path.write_text(json.dumps(composition_manifest), encoding="utf-8")
+        manifest["composition_manifest_sha256"] = sha256_bytes(path.read_bytes())
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _refresh_bundle_inventory(bundle)
+    checked = verify_phase8_bundle(bundle)
+    assert checked.valid, checked.issues
+    runner = PublicV2Runner([])
+    resumed = realize(composition, output, runner=runner, model="fixed", trial_id="trial-001")
+    assert not resumed.succeeded
+    assert resumed.issues[0].code is IssueCode.LINEAGE_MISMATCH
+    assert runner.calls == 0
 
 
 def test_public_v2_flow_resumes_after_a_completed_phase2_operation(tmp_path: Path) -> None:

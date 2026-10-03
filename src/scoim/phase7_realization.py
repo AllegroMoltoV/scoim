@@ -10,6 +10,7 @@ from typing import cast
 from llm_musical_composer.run_state import RunStore, sha256_json
 
 from .finite_model_operation import execute_finite_model_operation
+from .pedal_contract import HARMONY_RELEASE_PEDAL
 from .phase7_performance_contracts import (
     build_performance_choice_operations,
     build_performance_choices,
@@ -79,7 +80,8 @@ def realize_phase7(
     store = RunStore(destination, max_calls=2 * len(operations))
     operation_order = [operation.operation_id for operation in operations]
     spec = {
-        "schema_version": 3,
+        "schema_version": 4,
+        "pedal_contract": HARMONY_RELEASE_PEDAL,
         "timing_contract": QUANTIZED_TIMING,
         "generation_context_contract": GENERATION_CONTEXT_CONTRACT,
         "operation": "phase7-performance-realization",
@@ -174,7 +176,12 @@ def realize_phase7(
     validate_projection_ledger(cumulative_ledger)
     try:
         rendered = render_score_performance(
-            document, plan, score, built.performance, timing_contract=QUANTIZED_TIMING
+            document,
+            plan,
+            score,
+            built.performance,
+            timing_contract=QUANTIZED_TIMING,
+            pedal_contract=HARMONY_RELEASE_PEDAL,
         )
     except ScoreRenderingError as error:
         outcome = (

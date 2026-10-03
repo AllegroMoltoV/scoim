@@ -545,7 +545,7 @@ def test_rendering_assigns_harmony_pedal_events_to_the_active_score_unit() -> No
         replace(performance, section_performances=(root_performance,)),
     )
 
-    assert rendered.pedals[0].at_ms == 0
+    assert rendered.pedals[0].at_ms == 80
     assert all(pedal.source_score_unit_id == "score-unit-statement" for pedal in rendered.pedals)
 
 
@@ -564,7 +564,7 @@ def test_rendering_keeps_the_starting_score_unit_for_a_pedal_up_at_a_boundary() 
     )
 
     first_pedal_up = next(
-        pedal for pedal in rendered.pedals if pedal.performed_pedal_id == "pedal-0-0-up"
+        pedal for pedal in rendered.pedals if pedal.performed_pedal_id == "pedal-0-up"
     )
     assert first_pedal_up.source_score_unit_id == "score-unit-statement"
 

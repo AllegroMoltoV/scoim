@@ -1,4 +1,6 @@
 import json
+import zipfile
+from pathlib import Path
 
 import pytest
 from test_scoim_phase3_realization import SequencedRunner
@@ -6,6 +8,7 @@ from test_scoim_phase7_realization import _response
 from test_scoim_score_realization import _score_run
 
 from llm_musical_composer.run_state import sha256_json
+from scoim.pedal_contract import LEGACY_PEDAL
 from scoim.performance_ir import PerformanceSpec, SectionPerformance, rendered_performance_to_json
 from scoim.phase7_realization import Phase7Request, realize_phase7
 from scoim.phase7_state import load_complete_phase7_run
@@ -21,11 +24,19 @@ def _phase7_run(tmp_path):
     return phase7_dir
 
 
+def _legacy_phase7_run(tmp_path):
+    archive = Path(__file__).parent / "fixtures/scoim/legacy-pedal-phrase_legato-480904e/bundle.zip"
+    with zipfile.ZipFile(archive) as saved:
+        saved.extractall(tmp_path / "legacy")
+    return tmp_path / "legacy/model-runs/phase7"
+
+
 def _rewrite_as_phase7_schema_v1(run_dir) -> None:
     run_spec_path = run_dir / "run-spec.json"
     run_spec = json.loads(run_spec_path.read_text(encoding="utf-8"))
     run_spec["schema_version"] = 1
     run_spec.pop("timing_contract", None)
+    run_spec.pop("pedal_contract", None)
     run_spec_path.write_text(json.dumps(run_spec), encoding="utf-8")
 
     score = json.loads((run_dir / "inputs" / "score-spec.json").read_text(encoding="utf-8"))
@@ -45,7 +56,12 @@ def _rewrite_as_phase7_schema_v1(run_dir) -> None:
     )
     performance = PerformanceSpec(**raw_performance)
     legacy = render_score_performance(
-        document, plan, typed_score, performance, physical_key_contract=False
+        document,
+        plan,
+        typed_score,
+        performance,
+        physical_key_contract=False,
+        pedal_contract=LEGACY_PEDAL,
     )
     rendered = rendered_performance_to_json(legacy, typed_score, schema_version=1)
     rendered_path.write_text(json.dumps(rendered), encoding="utf-8")
@@ -62,15 +78,15 @@ def test_phase7_run_reconstructs_without_calling_a_model(tmp_path) -> None:
     loaded = load_complete_phase7_run(run_dir)
 
     run_spec = json.loads((run_dir / "run-spec.json").read_text(encoding="utf-8"))
-    assert run_spec["schema_version"] == 3
-    assert loaded.phase7_schema_version == 3
+    assert run_spec["schema_version"] == 4
+    assert loaded.phase7_schema_version == 4
     assert loaded.performance.section_performances[0].section_id == "statement"
     assert loaded.rendered.notes
     assert loaded.cumulative_projection_ledger[-1].status == "unverified"
 
 
 def test_phase7_schema_v1_run_reconstructs_with_its_saved_contract(tmp_path) -> None:
-    run_dir = _phase7_run(tmp_path)
+    run_dir = _legacy_phase7_run(tmp_path)
     _rewrite_as_phase7_schema_v1(run_dir)
 
     loaded = load_complete_phase7_run(run_dir)
